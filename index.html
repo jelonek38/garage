@@ -3,95 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitor Garażu LoRa</title>
+    <title>Monitor Garażu</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        h1 { color: #38bdf8; margin-bottom: 30px; text-shadow: 0 0 10px rgba(56, 189, 248, 0.2); }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; width: 90%; max-width: 850px; }
-        .card { background: #1e293b; padding: 30px; border-radius: 20px; border-top: 4px solid #38bdf8; text-align: center; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); transition: transform 0.3s ease; }
-        .card:hover { transform: translateY(-5px); }
-        .label { font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 15px; display: block; }
-        .value { font-size: 3rem; font-weight: bold; color: #ffffff; }
-        .unit { font-size: 1.1rem; color: #64748b; margin-left: 5px; }
-        #status-bar { margin-top: 40px; padding: 10px 25px; background: #1e293b; border-radius: 30px; font-size: 0.85rem; color: #64748b; border: 1px solid #334155; }
-        #timestamp { color: #38bdf8; font-weight: bold; }
-        #error-log { margin-top: 20px; color: #f87171; font-family: monospace; font-size: 0.7rem; max-width: 80%; text-align: center; }
+        body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; padding: 20px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin: 10px; display: inline-block; min-width: 150px; border-top: 4px solid #38bdf8; }
+        .val { font-size: 2.5rem; font-weight: bold; color: #38bdf8; display: block; }
+        #debug-box { margin-top: 30px; background: #000; color: #fbbf24; padding: 15px; font-family: monospace; font-size: 11px; text-align: left; max-width: 600px; margin: 0 auto; border-radius: 8px; border: 1px solid #444; }
+        .error-link { color: #f87171; text-decoration: underline; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <h1>MONITOR GARAŻU</h1>
+    <h1>STATUS GARAŻU</h1>
     
-    <div class="grid">
-        <div class="card">
-            <span class="label">Moc Sygnału</span>
-            <span id="rssi_val" class="value">--</span><span class="unit">dBm</span>
-        </div>
-        <div class="card">
-            <span class="label">Jakość SNR</span>
-            <span id="snr_val" class="value">--</span><span class="unit">dB</span>
-        </div>
-        <div class="card">
-            <span class="label">ID Pakietu</span>
-            <span id="pakiet_val" class="value">--</span>
-        </div>
-    </div>
+    <div class="card"><span>RSSI</span><span id="rssi_v" class="val">--</span></div>
+    <div class="card"><span>SNR</span><span id="snr_v" class="val">--</span></div>
+    <div class="card"><span>PAKIET</span><span id="pakiet_v" class="val">--</span></div>
 
-    <div id="status-bar">
-        Status: <span id="timestamp">Inicjalizacja systemu...</span>
+    <div id="debug-box">
+        <strong>KONSOLA ANALITYCZNA:</strong><br>
+        <div id="log-content">Czekam na start...</div>
     </div>
-    <div id="error-log"></div>
 
     <script>
+        // SPRAWDŹ TO W "MY KEY" NA ADAFRUIT! 
+        // Może być s_k_, s-k-, lub zupełnie inaczej.
         const USER = "S_K_"; 
-        const FEEDS = ['rssi', 'snr', 'pakiet'];
 
-        async function fetchData() {
-            const errorLog = document.getElementById('error-log');
-            let anySuccess = false;
-            let logText = "";
+        async function testConnection() {
+            const feeds = ['rssi', 'snr', 'pakiet'];
+            const logEl = document.getElementById('log-content');
+            logEl.innerHTML = "";
 
-            for (const f of FEEDS) {
-                // Próbujemy 3 różnych wariantów adresu URL dla każdego feedu
-                const paths = [
-                    `https://io.adafruit.com/api/v2/${USER}/feeds/${f}/data/last`,
-                    `https://io.adafruit.com/api/v2/${USER.toLowerCase()}/feeds/${f}/data/last`,
-                    `https://io.adafruit.com/api/v2/${USER}/groups/default/feeds/${f}/data/last`
-                ];
+            for (const f of feeds) {
+                const url = `https://io.adafruit.com/api/v2/${USER}/feeds/${f}/data/last`;
+                logEl.innerHTML += `Sprawdzam kanał: ${f}...<br>`;
 
-                let loaded = false;
-                for (const url of paths) {
-                    try {
-                        const response = await fetch(url);
-                        if (response.ok) {
-                            const data = await response.json();
-                            document.getElementById(f + '_val').innerText = data.value;
-                            loaded = true;
-                            anySuccess = true;
-                            break; // Jeśli ten URL zadziałał, nie sprawdzaj pozostałych dla tego feedu
-                        }
-                    } catch (e) {
-                        logText += `Błąd sieci dla ${f}. `;
+                try {
+                    const r = await fetch(url);
+                    if (r.ok) {
+                        const d = await r.json();
+                        document.getElementById(f + '_v').innerText = d.value;
+                        logEl.innerHTML += `<span style="color:#4ade80">✓ Sukces dla ${f}</span><br>`;
+                    } else {
+                        logEl.innerHTML += `<span style="color:#f87171">✗ BŁĄD ${r.status}. Kliknij i sprawdź czy link działa: <a class="error-link" href="${url}" target="_blank">LINK DO TESTU</a></span><br>`;
                     }
+                } catch (e) {
+                    logEl.innerHTML += `<span style="color:#f87171">✗ Błąd sieci: ${e.message}</span><br>`;
                 }
-
-                if (!loaded) {
-                    logText += `Nie znaleziono feedu "${f}" pod żadnym adresem (404). `;
-                }
-            }
-
-            if (anySuccess) {
-                document.getElementById('timestamp').innerText = "Zaktualizowano: " + new Date().toLocaleTimeString();
-                errorLog.innerText = logText; // Pokaż błędy tylko jeśli czegoś brakuje
-            } else {
-                document.getElementById('timestamp').innerText = "Błąd połączenia";
-                errorLog.innerText = "Serwer Adafruit nie odpowiada. Sprawdź, czy Twoje Feedy są na pewno PUBLICZNE (Public).";
             }
         }
 
-        // Pierwsze wywołanie i interwał
-        fetchData();
-        setInterval(fetchData, 15000);
+        testConnection();
+        setInterval(testConnection, 15000);
     </script>
 </body>
 </html>

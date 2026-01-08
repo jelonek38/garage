@@ -3,64 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Status LoRa</title>
+    <title>Garaż LoRa Monitor</title>
     <style>
-        body { font-family: sans-serif; background: #0f172a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin: 10px; min-width: 200px; text-align: center; border-bottom: 4px solid #38bdf8; }
-        .val { font-size: 2.5rem; font-weight: bold; display: block; }
-        .label { color: #94a3b8; text-transform: uppercase; font-size: 0.8rem; }
-        #status { margin-top: 20px; font-size: 0.7rem; color: #475569; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        h1 { color: #38bdf8; margin-bottom: 20px; text-shadow: 0 0 10px rgba(56, 189, 248, 0.3); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; width: 90%; max-width: 800px; }
+        .card { background: #1e293b; padding: 25px; border-radius: 16px; border-top: 4px solid #38bdf8; text-align: center; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); }
+        .label { font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; font-weight: 600; }
+        .value { font-size: 2.8rem; font-weight: bold; color: #ffffff; }
+        .unit { font-size: 1rem; color: #64748b; margin-left: 5px; }
+        #status { margin-top: 40px; font-size: 0.8rem; color: #475569; padding: 10px 20px; background: #1e293b; border-radius: 20px; }
+        #timestamp { color: #38bdf8; font-weight: bold; }
     </style>
 </head>
 <body>
-
-    <h1>GARAŻ LIVE</h1>
+    <h1>STATUS GARAŻU LIVE</h1>
     
-    <div class="card">
-        <span class="label">Moc (RSSI)</span>
-        <span id="rssi" class="val">--</span>
-    </div>
-    <div class="card">
-        <span class="label">Jakość (SNR)</span>
-        <span id="snr" class="val">--</span>
-    </div>
-    <div class="card">
-        <span class="label">Pakiet</span>
-        <span id="pakiet" class="val">--</span>
+    <div class="grid">
+        <div class="card">
+            <div class="label">Moc Sygnału</div>
+            <div class="value" id="rssi_val">--</div><span class="unit">dBm</span>
+        </div>
+        <div class="card">
+            <div class="label">Jakość SNR</div>
+            <div class="value" id="snr_val">--</div><span class="unit">dB</span>
+        </div>
+        <div class="card">
+            <div class="label">Ostatni Pakiet</div>
+            <div class="value" id="pakiet_val">--</div><span class="unit">ID</span>
+        </div>
     </div>
 
-    <div id="status">Inicjalizacja...</div>
+    <div id="status">
+        Aktualizacja: <span id="timestamp">Inicjalizacja...</span>
+    </div>
 
     <script>
-        // SPRAWDŹ TO DOKŁADNIE W LINKU DO FEEDU NA ADAFRUIT!
-        const user = "S_K_"; 
-
-        async function getData() {
+        const username = "S_K_"; // Twój potwierdzony login
+        
+        async function updateData() {
+            // Tablica kluczy (Keys) z Twojego panelu Adafruit
             const feeds = ['rssi', 'snr', 'pakiet'];
             
             for (const f of feeds) {
                 try {
-                    // Próbujemy pobrać dane z najbardziej bezpośredniego adresu API
-                    const url = `https://io.adafruit.com/api/v2/${user}/feeds/${f}/data/last`;
-                    const r = await fetch(url);
+                    // Dodajemy Date.now() aby wymusić odświeżenie (omijanie cache)
+                    const url = `https://io.adafruit.com/api/v2/${username}/feeds/${f}/data/last?cb=${Date.now()}`;
+                    const response = await fetch(url);
                     
-                    if (!r.ok) {
-                        console.error(`Błąd dla ${f}: ${r.status}`);
-                        document.getElementById('status').innerText = `Nie znaleziono feedu: ${f}. Sprawdź nazwę użytkownika i klucze.`;
+                    if (!response.ok) {
+                        console.error(`Błąd dla feedu ${f}: ${response.status}`);
                         continue;
                     }
 
-                    const d = await r.json();
-                    document.getElementById(f).innerText = d.value;
-                    document.getElementById('status').innerText = "Aktualizacja: " + new Date().toLocaleTimeString();
+                    const data = await response.json();
+                    
+                    // Aktualizacja elementu na stronie
+                    const el = document.getElementById(f + '_val');
+                    if (el && data.value !== undefined) {
+                        el.innerText = data.value;
+                    }
                 } catch (err) {
-                    document.getElementById('status').innerText = "Błąd połączenia z API";
+                    console.error("Błąd sieci:", err);
                 }
             }
+            document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
         }
 
-        setInterval(getData, 15000);
-        getData();
+        // Pobieraj dane co 15 sekund
+        setInterval(updateData, 15000);
+        // Pierwsze pobranie zaraz po wczytaniu strony
+        updateData();
     </script>
 </body>
 </html>

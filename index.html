@@ -36,4 +36,100 @@
         </div>
         <div class="card">
             <span class="label">Jakość SNR</span>
-            <span id="sn
+            <span id="snr_val" class="value">--</span><span class="unit">dB</span>
+        </div>
+        <div class="card">
+            <span class="label">Pakiet ID</span>
+            <span id="pakiet_val" class="value">--</span>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-container snr-border">
+            <span class="label" style="color: #f472b6; margin-bottom: 10px;">Historia SNR (Jakość)</span>
+            <canvas id="snrChart"></canvas>
+        </div>
+
+        <div class="chart-container rssi-border">
+            <span class="label" style="color: #38bdf8; margin-bottom: 10px;">Historia RSSI (Moc)</span>
+            <canvas id="rssiChart"></canvas>
+        </div>
+    </div>
+
+    <div id="status">Aktualizacja: <span id="timestamp">Ładowanie...</span></div>
+
+    <script>
+        const USER = "S_K_";
+        let snrChart, rssiChart;
+
+        function createChart(id, label, color, bgColor) {
+            const ctx = document.getElementById(id).getContext('2d');
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: label,
+                        data: [],
+                        borderColor: color,
+                        backgroundColor: bgColor,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { 
+                            grid: { color: '#334155' },
+                            ticks: { color: '#94a3b8', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function updateDashboard() {
+            try {
+                // 1. Aktualne wartości
+                const resGroup = await fetch(`https://io.adafruit.com/api/v2/${USER}/groups/default/feeds?cb=${Date.now()}`);
+                const groupData = await resGroup.json();
+                groupData.forEach(feed => {
+                    const el = document.getElementById(feed.key + '_val');
+                    if (el && feed.last_value !== null) el.innerText = feed.last_value;
+                });
+
+                // 2. Historia SNR
+                const resSnr = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/snr/data?limit=20`);
+                const snrData = await resSnr.json();
+                snrChart.data.labels = snrData.map(d => new Date(d.created_at).toLocaleTimeString()).reverse();
+                snrChart.data.datasets[0].data = snrData.map(d => d.value).reverse();
+                snrChart.update();
+
+                // 3. Historia RSSI
+                const resRssi = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/rssi/data?limit=20`);
+                const rssiData = await resRssi.json();
+                rssiChart.data.labels = rssiData.map(d => new Date(d.created_at).toLocaleTimeString()).reverse();
+                rssiChart.data.datasets[0].data = rssiData.map(d => d.value).reverse();
+                rssiChart.update();
+
+                document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
+            } catch (e) {
+                console.error("Błąd pobierania danych:", e);
+            }
+        }
+
+        // Inicjalizacja obu wykresów
+        snrChart = createChart('snrChart', 'SNR (dB)', '#f472b6', 'rgba(244, 114, 182, 0.1)');
+        rssiChart = createChart('rssiChart', 'RSSI (dBm)', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
+
+        updateDashboard();
+        setInterval(updateDashboard, 15000);
+    </script>
+</body>
+</html>

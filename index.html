@@ -2,10 +2,10 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Monitor: Nadajnik 1</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; padding: 10px; min-height: 100vh; margin: 0; }
         h1 { color: #38bdf8; margin: 15px 0; text-transform: uppercase; font-size: 1.1rem; }
@@ -16,20 +16,32 @@
         .value { font-size: 1.4rem; font-weight: bold; }
 
         .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px; }
-        .chart-container { background: #1e293b; border-radius: 16px; padding: 15px; border-left: 5px solid #38bdf8; touch-action: none; }
+        .chart-container { 
+            background: #1e293b; 
+            border-radius: 16px; 
+            padding: 15px; 
+            border-left: 5px solid #38bdf8; 
+            position: relative;
+            touch-action: none; /* Kluczowe dla urządzeń mobilnych */
+        }
         
         .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; align-items: center; background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; }
         .filter-bar input { background: #0f172a; border: 1px solid #334155; color: white; font-size: 0.75rem; padding: 5px; border-radius: 4px; }
         .btn { background: #38bdf8; color: #0f172a; border: none; padding: 5px 12px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
         .btn-reset { background: #475569; color: white; margin-left: auto; }
 
-        canvas { width: 100% !important; height: 300px !important; cursor: crosshair; }
-        #status { margin: 20px 0; font-size: 0.7rem; color: #475569; }
+        canvas { 
+            width: 100% !important; 
+            height: 300px !important; 
+            cursor: move; /* Kursor wskazujący na możliwość przesuwania */
+        }
+
+        #status { margin: 20px 0; font-size: 0.7rem; color: #475569; text-align: center; }
     </style>
 </head>
 <body>
 
-    <h1>NADAJNIK 1: STATUS</h1>
+    <h1>NADAJNIK 1: MONITORING</h1>
     
     <div class="grid">
         <div class="card"><span class="label">RSSI</span><span id="rssi_val" class="value">--</span></div>
@@ -43,7 +55,7 @@
                 <input type="datetime-local" id="snr_start">
                 <input type="datetime-local" id="snr_end">
                 <button class="btn" onclick="applyFilter('snr')">FILTRUJ</button>
-                <button class="btn btn-reset" onclick="resetZoom('snrChart')">RESET WIDOKU</button>
+                <button class="btn btn-reset" onclick="resetZoom('snrChart')">RESET</button>
             </div>
             <canvas id="snrChart"></canvas>
         </div>
@@ -53,13 +65,13 @@
                 <input type="datetime-local" id="rssi_start">
                 <input type="datetime-local" id="rssi_end">
                 <button class="btn" onclick="applyFilter('rssi')">FILTRUJ</button>
-                <button class="btn btn-reset" onclick="resetZoom('rssiChart')">RESET WIDOKU</button>
+                <button class="btn btn-reset" onclick="resetZoom('rssiChart')">RESET</button>
             </div>
             <canvas id="rssiChart"></canvas>
         </div>
     </div>
 
-    <div id="status">SYNCHRONIZACJA: <span id="timestamp">...</span></div>
+    <div id="status">SYNCHRONIZACJA: <span id="timestamp">ŁADOWANIE...</span></div>
 
     <script>
         const USER = "S_K_";
@@ -69,7 +81,7 @@
             const ctx = document.getElementById(id).getContext('2d');
             charts[id] = new Chart(ctx, {
                 type: 'line',
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: bgColor, borderWidth: 2, fill: true, tension: 0.3, pointRadius: 2 }] },
+                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: bgColor, borderWidth: 2, fill: true, tension: 0.3, pointRadius: 1 }] },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -79,12 +91,12 @@
                             pan: {
                                 enabled: true,
                                 mode: 'x',
-                                modifierKey: null // Brak klawisza = przesuwanie samym kliknięciem
+                                modifierKey: null, // Pozwala przesuwać bez trzymania Ctrl
                             },
                             zoom: {
-                                drag: { enabled: true, backgroundColor: 'rgba(56, 189, 248, 0.2)' }, // Zaznaczanie myszką aby powiększyć
-                                wheel: { enabled: false }, // Wyłączone kółko, by nie psuło panowania
-                                mode: 'x'
+                                wheel: { enabled: true }, // Powiększanie kółkiem myszy
+                                pinch: { enabled: true }, // Powiększanie palcami
+                                mode: 'x',
                             }
                         }
                     },

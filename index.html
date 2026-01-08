@@ -20,7 +20,6 @@
         
         .chart-container { position: relative; height: 300px; width: 100%; }
 
-        /* Pasek sterowania pod wykresem */
         .controls { display: flex; justify-content: center; gap: 10px; margin-top: 15px; }
         .btn-ctrl { background: #334155; color: #f8fafc; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: all 0.2s; }
         .btn-ctrl:hover { background: #38bdf8; color: #0f172a; }
@@ -28,7 +27,6 @@
 
         #status { margin-top: 25px; font-size: 0.7rem; color: #475569; }
         #timestamp { color: #38bdf8; font-weight: bold; }
-        .hint { font-size: 0.6rem; color: #64748b; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -62,7 +60,6 @@
     </div>
 
     <div id="status">AKTUALIZACJA: <span id="timestamp">ŁADOWANIE...</span></div>
-    <div class="hint">ROLKA MYSZY: ZOOM | PRZYCISKI: PRZEWIJANIE HISTORII</div>
 
     <script>
         const USER = "S_K_";
@@ -80,19 +77,31 @@
                     plugins: {
                         legend: { display: false },
                         zoom: {
-                            pan: { enabled: true, mode: 'x' },
-                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                            pan: { 
+                                enabled: true, 
+                                mode: 'x' // TYLKO oś X - zapobiega skakaniu góra/dół
+                            },
+                            zoom: { 
+                                wheel: { enabled: true }, 
+                                pinch: { enabled: true }, 
+                                mode: 'x' // TYLKO oś X
+                            }
                         }
                     },
                     scales: {
-                        x: { ticks: { color: '#475569', font: { size: 9 } }, grid: { display: false } },
-                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+                        x: { 
+                            ticks: { color: '#475569', font: { size: 9 } }, 
+                            grid: { display: false } 
+                        },
+                        y: { 
+                            ticks: { color: '#94a3b8' }, 
+                            grid: { color: '#334155' }
+                        }
                     }
                 }
             });
         }
 
-        // Odwrócona logika przesuwania zgodnie z prośbą
         function moveChart(id, amount) {
             charts[id].pan({ x: amount }, undefined, 'default');
         }
@@ -103,7 +112,6 @@
 
         async function updateDashboard() {
             try {
-                // Dane Live
                 const resGroup = await fetch(`https://io.adafruit.com/api/v2/${USER}/groups/default/feeds?cb=${Date.now()}`);
                 const groupData = await resGroup.json();
                 groupData.forEach(feed => {
@@ -111,7 +119,6 @@
                     if (el && feed.last_value !== null) el.innerText = feed.last_value;
                 });
 
-                // Historia (250 pkt)
                 const fetchKey = async (key, chartId) => {
                     const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=250`);
                     const history = await res.json();
@@ -122,7 +129,7 @@
                     charts[chartId].data.labels = labels;
                     charts[chartId].data.datasets[0].data = values;
                     
-                    // Aktualizuj tylko gdy widok jest zresetowany
+                    // Kluczowe: aktualizacja danych NIE resetuje zoomu
                     if (charts[chartId].getZoomLevel && charts[chartId].getZoomLevel() === 1) {
                         charts[chartId].update('none');
                     }
@@ -132,7 +139,7 @@
                 await fetchKey('rssi', 'rssiChart');
 
                 document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
-            } catch (e) { console.error("Błąd sync:", e); }
+            } catch (e) { console.error(e); }
         }
 
         createChart('snrChart', 'SNR', '#f472b6', 'rgba(244, 114, 182, 0.1)');

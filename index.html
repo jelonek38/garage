@@ -63,4 +63,59 @@
                         label: 'SNR (dB)',
                         data: [],
                         borderColor: '#f472b6',
-                        backgroundColor: 'rgba(244, 114,
+                        backgroundColor: 'rgba(244, 114, 182, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { 
+                            grid: { color: '#334155' },
+                            ticks: { color: '#94a3b8', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function updateDashboard() {
+            try {
+                // 1. Pobierz aktualne wartości (grupa)
+                const resGroup = await fetch(`https://io.adafruit.com/api/v2/${USER}/groups/default/feeds?cb=${Date.now()}`);
+                const groupData = await resGroup.json();
+                groupData.forEach(feed => {
+                    const el = document.getElementById(feed.key);
+                    if (el && feed.last_value !== null) el.innerText = feed.last_value;
+                });
+
+                // 2. Pobierz historię SNR dla wykresu (ostatnie 20 punktów)
+                const resHistory = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/snr/data?limit=20`);
+                const historyData = await resHistory.json();
+
+                // Odwracamy dane, żeby najnowsze były po prawej
+                const labels = historyData.map(d => new Date(d.created_at).toLocaleTimeString()).reverse();
+                const values = historyData.map(d => d.value).reverse();
+
+                snrChart.data.labels = labels;
+                snrChart.data.datasets[0].data = values;
+                snrChart.update();
+
+                document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
+            } catch (e) {
+                console.error("Błąd pobierania danych:", e);
+            }
+        }
+
+        initChart();
+        updateDashboard();
+        setInterval(updateDashboard, 15000);
+    </script>
+</body>
+</html>

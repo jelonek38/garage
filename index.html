@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Monitor 433MHz: Pełna Kontrola</title>
+    <title>Monitor 433MHz: Nawigacja</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
     <style>
@@ -19,14 +19,16 @@
         .chart-wrapper { background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); position: relative; }
         .chart-container { position: relative; height: 350px; width: 100%; }
 
-        /* Panel nawigacji */
-        .controls-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; margin-top: 15px; align-items: center; }
-        .nav-group { display: flex; gap: 5px; justify-content: center; }
+        /* Panel 4 przycisków */
+        .controls-row { display: flex; justify-content: center; gap: 8px; margin-top: 15px; flex-wrap: wrap; }
         
-        .btn-ctrl { background: #334155; color: #f8fafc; border: none; padding: 8px 12px; border-radius: 6px; font-size: 0.7rem; cursor: pointer; font-weight: bold; transition: all 0.2s; min-width: 40px; }
-        .btn-ctrl:hover { background: #38bdf8; color: #0f172a; }
-        .btn-reset { background: #475569; padding: 8px 20px; }
-        .btn-zoom { background: #1e3a8a; } /* Inny kolor dla zoomu Y */
+        .btn-nav { background: #334155; color: #f8fafc; border: none; padding: 12px 18px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; font-weight: bold; transition: all 0.2s; min-width: 80px; text-transform: uppercase; border-bottom: 3px solid rgba(0,0,0,0.2); }
+        .btn-nav:hover { background: #38bdf8; color: #0f172a; }
+        .btn-nav:active { transform: translateY(2px); border-bottom: none; }
+        
+        .btn-zoom-in { background: #0369a1; }
+        .btn-zoom-out { background: #0369a1; }
+        .btn-reset-top { position: absolute; top: 10px; right: 10px; background: rgba(71, 85, 105, 0.5); padding: 5px 10px; font-size: 0.6rem; }
 
         #status { margin-top: 25px; font-size: 0.7rem; color: #475569; }
         #timestamp { color: #38bdf8; font-weight: bold; }
@@ -34,7 +36,7 @@
 </head>
 <body>
 
-    <h1>NADAJNIK 1: ANALIZA SYGNAŁU 433 MHz</h1>
+    <h1>NADAJNIK 1: MONITOR 433 MHz</h1>
     
     <div class="grid">
         <div class="card"><span class="label">Moc (RSSI)</span><span id="rssi_val" class="value">--</span></div>
@@ -44,36 +46,24 @@
 
     <div class="charts-stack">
         <div class="chart-wrapper" style="border-left: 5px solid #f472b6;">
+            <button class="btn-nav btn-reset-top" onclick="resetZoom('snrChart')">RESET</button>
             <div class="chart-container"><canvas id="snrChart"></canvas></div>
-            <div class="controls-grid">
-                <div class="nav-group">
-                    <button class="btn-ctrl" onclick="moveChart('snrChart', 150, 'x')">◀ X</button>
-                    <button class="btn-ctrl" onclick="moveChart('snrChart', -150, 'x')">X ▶</button>
-                </div>
-                <button class="btn-ctrl btn-reset" onclick="resetZoom('snrChart')">RESET</button>
-                <div class="nav-group">
-                    <button class="btn-ctrl btn-zoom" onclick="zoomY('snrChart', 1.1)">Z+ Y</button>
-                    <button class="btn-ctrl btn-zoom" onclick="zoomY('snrChart', 0.9)">Z- Y</button>
-                    <button class="btn-ctrl" onclick="moveChart('snrChart', 2, 'y')">▲ Y</button>
-                    <button class="btn-ctrl" onclick="moveChart('snrChart', -2, 'y')">▼ Y</button>
-                </div>
+            <div class="controls-row">
+                <button class="btn-nav" onclick="moveX('snrChart', 150)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('snrChart', -150)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom-in" onclick="zoomY('snrChart', 1.2)">ZOOM +</button>
+                <button class="btn-nav btn-zoom-out" onclick="zoomY('snrChart', 0.8)">ZOOM -</button>
             </div>
         </div>
 
         <div class="chart-wrapper" style="border-left: 5px solid #38bdf8;">
+            <button class="btn-nav btn-reset-top" onclick="resetZoom('rssiChart')">RESET</button>
             <div class="chart-container"><canvas id="rssiChart"></canvas></div>
-            <div class="controls-grid">
-                <div class="nav-group">
-                    <button class="btn-ctrl" onclick="moveChart('rssiChart', 150, 'x')">◀ X</button>
-                    <button class="btn-ctrl" onclick="moveChart('rssiChart', -150, 'x')">X ▶</button>
-                </div>
-                <button class="btn-ctrl btn-reset" onclick="resetZoom('rssiChart')">RESET</button>
-                <div class="nav-group">
-                    <button class="btn-ctrl btn-zoom" onclick="zoomY('rssiChart', 1.1)">Z+ Y</button>
-                    <button class="btn-ctrl btn-zoom" onclick="zoomY('rssiChart', 0.9)">Z- Y</button>
-                    <button class="btn-ctrl" onclick="moveChart('rssiChart', 5, 'y')">▲ Y</button>
-                    <button class="btn-ctrl" onclick="moveChart('rssiChart', -5, 'y')">▼ Y</button>
-                </div>
+            <div class="controls-row">
+                <button class="btn-nav" onclick="moveX('rssiChart', 150)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('rssiChart', -150)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom-in" onclick="zoomY('rssiChart', 1.2)">ZOOM +</button>
+                <button class="btn-nav btn-zoom-out" onclick="zoomY('rssiChart', 0.8)">ZOOM -</button>
             </div>
         </div>
     </div>
@@ -96,11 +86,8 @@
                     plugins: {
                         legend: { display: false },
                         zoom: {
-                            pan: { enabled: true, mode: 'xy' }, // Pozwalamy na przesuwanie w obu osiach
-                            zoom: { 
-                                wheel: { enabled: true }, 
-                                mode: 'x' // Kółko myszy nadal tylko dla osi czasu
-                            }
+                            pan: { enabled: true, mode: 'x' },
+                            zoom: { wheel: { enabled: true }, mode: 'x' }
                         }
                     },
                     scales: {
@@ -111,14 +98,13 @@
             });
         }
 
-        // Przesuwanie (Pan) X lub Y
-        function moveChart(id, amount, axis) {
-            const param = axis === 'x' ? { x: amount } : { y: amount };
-            charts[id].pan(param, undefined, 'default');
+        // Funkcje sterujące
+        function moveX(id, amount) {
+            charts[id].pan({ x: amount }, undefined, 'default');
         }
 
-        // Skalowanie (Zoom) tylko osi Y
         function zoomY(id, factor) {
+            // Zoom pionowy (Y)
             charts[id].zoom({ y: factor }, 'default');
         }
 
@@ -144,7 +130,6 @@
                     charts[chartId].data.labels = labels;
                     charts[chartId].data.datasets[0].data = values;
                     
-                    // Odświeżaj tylko jeśli użytkownik nie "grzebie" w widoku
                     if (charts[chartId].getZoomLevel && charts[chartId].getZoomLevel() === 1) {
                         charts[chartId].update('none');
                     }

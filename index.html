@@ -39,27 +39,41 @@
         Dane odświeżają się automatycznie co 15 sekund.
     </div>
 
-    <script>
-        const username = "S_K_"; // TU WPISZ SWOJĄ NAZWĘ Z ADAFRUIT IO
+<script>
+    const username = "S_K_"; // Twój poprawny login
+
+    async function fetchData() {
+        const feeds = ['rssi', 'snr', 'pakiet'];
         
-        async function fetchData() {
+        for (const feed of feeds) {
             try {
-                const feeds = ['rssi', 'snr', 'pakiet'];
-                for (const feed of feeds) {
-                    const response = await fetch(`https://io.adafruit.com/api/v2/${username}/feeds/${feed}/data/last`);
-                    const data = await response.json();
-                    document.getElementById(feed).innerText = data.value;
+                // Dodajemy timestamp, aby uniknąć czytania "starych" danych z pamięci podręcznej przeglądarki
+                const response = await fetch(`https://io.adafruit.com/api/v2/${username}/feeds/${feed}/data/last?t=${Date.now()}`);
+                
+                if (!response.ok) throw new Error("Błąd serwera");
+
+                const data = await response.json();
+                
+                // Sprawdzamy czy wartość istnieje w odpowiedzi
+                if (data && data.value !== undefined) {
+                    document.getElementById(feed + '_val').innerText = data.value;
+                } else {
+                    document.getElementById(feed + '_val').innerText = "Brak danych";
                 }
-                document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
+
             } catch (error) {
-                console.error("Błąd pobierania:", error);
-                document.getElementById('timestamp').innerText = "Błąd połączenia";
+                console.error("Błąd dla feedu " + feed + ":", error);
+                document.getElementById(feed + '_val').innerText = "Błąd";
             }
         }
+        document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
+    }
 
-        setInterval(fetchData, 15000);
-        fetchData();
-    </script>
+    // Odświeżaj co 15 sekund
+    setInterval(fetchData, 15000);
+    fetchData();
+</script>
 </body>
 </html>
+
 

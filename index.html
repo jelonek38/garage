@@ -17,7 +17,6 @@
 
         .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px; }
         .chart-wrapper { background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); position: relative; }
-        
         .chart-container { position: relative; height: 300px; width: 100%; }
 
         .controls { display: flex; justify-content: center; gap: 10px; margin-top: 15px; }
@@ -65,7 +64,7 @@
         const USER = "S_K_";
         let charts = {};
 
-        function createChart(id, label, color, bgColor) {
+        function createChart(id, label, color, bgColor, minY, maxY) {
             const ctx = document.getElementById(id).getContext('2d');
             charts[id] = new Chart(ctx, {
                 type: 'line',
@@ -77,23 +76,15 @@
                     plugins: {
                         legend: { display: false },
                         zoom: {
-                            pan: { 
-                                enabled: true, 
-                                mode: 'x' // TYLKO oś X - zapobiega skakaniu góra/dół
-                            },
-                            zoom: { 
-                                wheel: { enabled: true }, 
-                                pinch: { enabled: true }, 
-                                mode: 'x' // TYLKO oś X
-                            }
+                            pan: { enabled: true, mode: 'x' },
+                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
                         }
                     },
                     scales: {
-                        x: { 
-                            ticks: { color: '#475569', font: { size: 9 } }, 
-                            grid: { display: false } 
-                        },
+                        x: { ticks: { color: '#475569', font: { size: 9 } }, grid: { display: false } },
                         y: { 
+                            min: minY, // Stałe minimum
+                            max: maxY, // Stałe maksimum
                             ticks: { color: '#94a3b8' }, 
                             grid: { color: '#334155' }
                         }
@@ -120,7 +111,7 @@
                 });
 
                 const fetchKey = async (key, chartId) => {
-                    const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=250`);
+                    const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=300`);
                     const history = await res.json();
                     
                     const labels = history.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
@@ -129,7 +120,6 @@
                     charts[chartId].data.labels = labels;
                     charts[chartId].data.datasets[0].data = values;
                     
-                    // Kluczowe: aktualizacja danych NIE resetuje zoomu
                     if (charts[chartId].getZoomLevel && charts[chartId].getZoomLevel() === 1) {
                         charts[chartId].update('none');
                     }
@@ -142,8 +132,9 @@
             } catch (e) { console.error(e); }
         }
 
-        createChart('snrChart', 'SNR', '#f472b6', 'rgba(244, 114, 182, 0.1)');
-        createChart('rssiChart', 'RSSI', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
+        // SNR: zakres -20 do +15 | RSSI: zakres -140 do -40
+        createChart('snrChart', 'SNR', '#f472b6', 'rgba(244, 114, 182, 0.1)', -20, 15);
+        createChart('rssiChart', 'RSSI', '#38bdf8', 'rgba(56, 189, 248, 0.1)', -140, -40);
 
         updateDashboard();
         setInterval(updateDashboard, 20000);

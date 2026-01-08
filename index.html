@@ -18,15 +18,16 @@
         .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px; }
         .chart-wrapper { background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); position: relative; }
         
-        /* Kluczowe dla działania Pan na dotyk i mysz */
-        .chart-container { position: relative; height: 300px; width: 100%; touch-action: none; }
-        
-        .btn-reset { position: absolute; top: 10px; right: 15px; background: #334155; color: #94a3b8; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.6rem; cursor: pointer; z-index: 10; text-transform: uppercase; }
-        .btn-reset:hover { background: #475569; color: white; }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+
+        /* Pasek sterowania pod wykresem */
+        .controls { display: flex; justify-content: center; gap: 10px; margin-top: 15px; }
+        .btn-ctrl { background: #334155; color: #f8fafc; border: none; padding: 8px 15px; border-radius: 6px; font-size: 0.7rem; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        .btn-ctrl:hover { background: #38bdf8; color: #0f172a; }
+        .btn-reset { background: #475569; }
 
         #status { margin-top: 25px; font-size: 0.7rem; color: #475569; }
         #timestamp { color: #38bdf8; font-weight: bold; }
-        .instructions { font-size: 0.6rem; color: #64748b; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
@@ -34,38 +35,32 @@
     <h1>NADAJNIK 1: STATUS SYGNAŁU</h1>
     
     <div class="grid">
-        <div class="card">
-            <span class="label">Moc (RSSI)</span>
-            <span id="rssi_val" class="value">--</span>
-        </div>
-        <div class="card">
-            <span class="label">Jakość (SNR)</span>
-            <span id="snr_val" class="value">--</span>
-        </div>
-        <div class="card">
-            <span class="label">Pakiet ID</span>
-            <span id="pakiet_val" class="value">--</span>
-        </div>
+        <div class="card"><span class="label">Moc (RSSI)</span><span id="rssi_val" class="value">--</span></div>
+        <div class="card"><span class="label">Jakość (SNR)</span><span id="snr_val" class="value">--</span></div>
+        <div class="card"><span class="label">Pakiet ID</span><span id="pakiet_val" class="value">--</span></div>
     </div>
 
     <div class="charts-stack">
         <div class="chart-wrapper" style="border-left: 5px solid #f472b6;">
-            <button class="btn-reset" onclick="resetZoom('snrChart')">Reset Zoom</button>
-            <div class="chart-container">
-                <canvas id="snrChart"></canvas>
+            <div class="chart-container"><canvas id="snrChart"></canvas></div>
+            <div class="controls">
+                <button class="btn-ctrl" onclick="moveChart('snrChart', -100)">◀ LEWO</button>
+                <button class="btn-ctrl btn-reset" onclick="resetZoom('snrChart')">RESET</button>
+                <button class="btn-ctrl" onclick="moveChart('snrChart', 100)">PRAWO ▶</button>
             </div>
         </div>
 
         <div class="chart-wrapper" style="border-left: 5px solid #38bdf8;">
-            <button class="btn-reset" onclick="resetZoom('rssiChart')">Reset Zoom</button>
-            <div class="chart-container">
-                <canvas id="rssiChart"></canvas>
+            <div class="chart-container"><canvas id="rssiChart"></canvas></div>
+            <div class="controls">
+                <button class="btn-ctrl" onclick="moveChart('rssiChart', -100)">◀ LEWO</button>
+                <button class="btn-ctrl btn-reset" onclick="resetZoom('rssiChart')">RESET</button>
+                <button class="btn-ctrl" onclick="moveChart('rssiChart', 100)">PRAWO ▶</button>
             </div>
         </div>
     </div>
 
     <div id="status">AKTUALIZACJA: <span id="timestamp">ŁADOWANIE...</span></div>
-    <div class="instructions">ROLKA: POWIĘKSZANIE | KLIKNIJ I PRZECIĄGNIJ: PRZESUWANIE W POZIOMIE</div>
 
     <script>
         const USER = "S_K_";
@@ -79,28 +74,26 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: false,
+                    animation: { duration: 200 },
                     plugins: {
                         legend: { display: false },
                         zoom: {
-                            pan: {
-                                enabled: true,
-                                mode: 'x',
-                                modifierKey: null // Pozwala na Pan samym kliknięciem myszy
-                            },
-                            zoom: {
-                                wheel: { enabled: true, speed: 0.1 },
-                                pinch: { enabled: true },
-                                mode: 'x'
-                            }
+                            pan: { enabled: true, mode: 'x' },
+                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
                         }
                     },
                     scales: {
-                        x: { ticks: { color: '#475569', font: { size: 9 }, maxRotation: 0 }, grid: { display: false } },
-                        y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } }
+                        x: { ticks: { color: '#475569', font: { size: 9 } }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
                     }
                 }
             });
+        }
+
+        // Funkcja przesuwania przyciskami
+        function moveChart(id, amount) {
+            const chart = charts[id];
+            chart.pan({ x: amount }, undefined, 'default');
         }
 
         function resetZoom(id) {
@@ -109,7 +102,7 @@
 
         async function updateDashboard() {
             try {
-                // 1. Pobierz aktualne wartości (karty na górze)
+                // Odczyty Live
                 const resGroup = await fetch(`https://io.adafruit.com/api/v2/${USER}/groups/default/feeds?cb=${Date.now()}`);
                 const groupData = await resGroup.json();
                 groupData.forEach(feed => {
@@ -117,13 +110,9 @@
                     if (el && feed.last_value !== null) el.innerText = feed.last_value;
                 });
 
-                // 2. Pobierz historię dla wykresów (200 punktów dla lepszej analizy)
+                // Historia
                 const fetchKey = async (key, chartId) => {
-                    // Sprawdzamy czy użytkownik aktualnie używa zoomu/panu
-                    // Jeśli tak, nie odświeżamy danych, by nie psuć widoku
-                    if (charts[chartId].isZoomedOrPanned && charts[chartId].isZoomedOrPanned()) return;
-
-                    const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=200`);
+                    const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=250`);
                     const history = await res.json();
                     
                     const labels = history.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
@@ -131,23 +120,22 @@
 
                     charts[chartId].data.labels = labels;
                     charts[chartId].data.datasets[0].data = values;
-                    charts[chartId].update('none'); 
+                    // Aktualizujemy dane tylko jeśli wykres NIE jest powiększony
+                    if (charts[chartId].getZoomLevel && charts[chartId].getZoomLevel() === 1) {
+                        charts[chartId].update('none');
+                    }
                 };
 
                 await fetchKey('snr', 'snrChart');
                 await fetchKey('rssi', 'rssiChart');
 
                 document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
-            } catch (e) {
-                console.error("Błąd pobierania danych:", e);
-            }
+            } catch (e) { console.error(e); }
         }
 
-        // Inicjalizacja
-        createChart('snrChart', 'SNR (dB)', '#f472b6', 'rgba(244, 114, 182, 0.1)');
-        createChart('rssiChart', 'RSSI (dBm)', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
+        createChart('snrChart', 'SNR', '#f472b6', 'rgba(244, 114, 182, 0.1)');
+        createChart('rssiChart', 'RSSI', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
 
-        // Pierwsze ładowanie i interwał
         updateDashboard();
         setInterval(updateDashboard, 20000);
     </script>

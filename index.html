@@ -5,15 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitor Garażu LoRa</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        h1 { color: #38bdf8; margin-bottom: 30px; letter-spacing: 2px; text-transform: uppercase; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; width: 90%; max-width: 800px; }
-        .card { background: #1e293b; padding: 25px; border-radius: 16px; border-top: 5px solid #38bdf8; text-align: center; box-shadow: 0 10px 15px rgba(0,0,0,0.5); transition: transform 0.3s; }
-        .card:hover { transform: scale(1.02); }
-        .label { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 10px; display: block; }
-        .value { font-size: 3rem; font-weight: bold; color: #ffffff; }
-        .unit { font-size: 1rem; color: #64748b; margin-left: 5px; }
-        #status { margin-top: 40px; font-size: 0.85rem; color: #475569; background: #1e293b; padding: 10px 20px; border-radius: 20px; border: 1px solid #334155; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; padding: 20px; min-height: 100vh; margin: 0; }
+        h1 { color: #38bdf8; margin-bottom: 30px; letter-spacing: 2px; text-transform: uppercase; font-size: 1.5rem; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; width: 95%; max-width: 900px; margin-bottom: 25px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 16px; border-top: 4px solid #38bdf8; text-align: center; box-shadow: 0 10px 15px rgba(0,0,0,0.5); }
+        .label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; display: block; }
+        .value { font-size: 2.5rem; font-weight: bold; color: #ffffff; }
+        .unit { font-size: 0.9rem; color: #64748b; margin-left: 5px; }
+
+        /* Styl dla kontenera wykresu */
+        .chart-container { width: 95%; max-width: 900px; background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); overflow: hidden; border-top: 4px solid #f472b6; }
+        .chart-container iframe { width: 100%; height: 350px; border: none; border-radius: 8px; }
+
+        #status { margin-top: 25px; font-size: 0.8rem; color: #475569; background: #1e293b; padding: 8px 18px; border-radius: 20px; border: 1px solid #334155; }
         #timestamp { color: #38bdf8; font-weight: bold; }
     </style>
 </head>
@@ -31,9 +36,14 @@
             <span id="snr" class="value">--</span><span class="unit">dB</span>
         </div>
         <div class="card">
-            <span class="label">Ostatni Pakiet</span>
+            <span class="label">Pakiet ID</span>
             <span id="pakiet" class="value">--</span>
         </div>
+    </div>
+
+    <div class="chart-container">
+        <span class="label" style="margin-bottom: 15px; color: #f472b6;">Historia Jakości Sygnału (SNR)</span>
+        <iframe src="https://io.adafruit.com/S_K_/charts/snr?hours=24&background_color=1e293b&line_color=f472b6&label_color=94a3b8&grid_color=334155"></iframe>
     </div>
 
     <div id="status">
@@ -44,7 +54,6 @@
         const USER = "S_K_";
 
         async function updateDashboard() {
-            // Używamy sprawdzonej ścieżki grupowej
             const url = `https://io.adafruit.com/api/v2/${USER}/groups/default/feeds?cb=${Date.now()}`;
 
             try {
@@ -66,7 +75,6 @@
             }
         }
 
-        // Odświeżaj co 15 sekund
         setInterval(updateDashboard, 15000);
         updateDashboard();
     </script>

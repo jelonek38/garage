@@ -3,47 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitor Garażu LoRa</title>
+    <title>Monitor Garażu</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        h1 { color: #38bdf8; margin-bottom: 30px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; width: 90%; max-width: 800px; }
-        .card { background: #1e293b; padding: 25px; border-radius: 16px; border-top: 4px solid #38bdf8; text-align: center; box-shadow: 0 10px 15px rgba(0,0,0,0.5); }
-        .label { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 10px; }
-        .value { font-size: 2.5rem; font-weight: bold; color: #ffffff; }
-        .unit { font-size: 0.9rem; color: #64748b; margin-left: 5px; }
-        #status { margin-top: 40px; font-size: 0.75rem; color: #475569; }
-        #timestamp { color: #38bdf8; font-weight: bold; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; width: 90%; max-width: 800px; }
+        .card { background: #1e293b; padding: 25px; border-radius: 16px; border-top: 5px solid #38bdf8; text-align: center; box-shadow: 0 10px 15px rgba(0,0,0,0.5); }
+        .val { font-size: 2.5rem; font-weight: bold; color: #38bdf8; }
+        .label { color: #94a3b8; text-transform: uppercase; font-size: 0.75rem; margin-bottom: 10px; display: block; }
+        #status { margin-top: 30px; font-size: 0.8rem; color: #475569; }
+        #debug { color: #f87171; font-size: 0.7rem; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h1>STATUS GARAŻU LIVE</h1>
+
+    <h1 style="color:#38bdf8">MONITOR GARAŻU</h1>
     
     <div class="grid">
         <div class="card">
-            <div class="label">Moc Sygnału</div>
-            <div class="value" id="rssi_v">--</div><span class="unit">dBm</span>
+            <span class="label">Moc Sygnału (RSSI)</span>
+            <span id="rssi_val" class="val">--</span>
         </div>
         <div class="card">
-            <div class="label">Jakość SNR</div>
-            <div class="value" id="snr_v">--</div><span class="unit">dB</span>
+            <span class="label">Jakość (SNR)</span>
+            <span id="snr_val" class="val">--</span>
         </div>
         <div class="card">
-            <div class="label">ID Pakietu</div>
-            <div class="value" id="pakiet_v">--</div>
+            <span class="label">ID Pakietu</span>
+            <span id="pakiet_val" class="val">--</span>
         </div>
     </div>
 
-    <div id="status">
-        Ostatnia aktualizacja: <span id="timestamp">Ładowanie...</span>
-    </div>
+    <div id="status">Aktualizacja: <span id="clock">...</span></div>
+    <div id="debug"></div>
 
     <script>
+        // SPRAWDŹMY WSZYSTKIE MOŻLIWE WERSJE TWOJEGO LOGUNU
         const USER = "S_K_"; 
-        // Zmieniono z 'pack' na 'pakiet'
         const FEEDS = ['rssi', 'snr', 'pakiet'];
 
         async function update() {
+            let errorLog = "";
+            
             for (const f of FEEDS) {
                 try {
-                    const response = await fetch(`https://io
+                    // Próbujemy pobrać dane z Adyfruit
+                    const response = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${f}/data/last`);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Szukamy elementu o id rssi_val, snr_val lub pakiet_val
+                        document.getElementById(f + '_val').innerText = data.value;
+                    } else {
+                        errorLog += `Błąd ${response.status} dla ${f} | `;
+                    }
+                } catch (e) {
+                    errorLog += `Błąd sieci | `;
+                }
+            }
+            
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+            document.getElementById('debug').innerText = errorLog;
+        }
+
+        // Pobieraj dane co 15 sekund
+        setInterval(update, 15000);
+        update();
+    </script>
+</body>
+</html>

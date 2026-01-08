@@ -2,82 +2,76 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Monitor: Nadajnik 1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nadajnik 1: Monitor</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; padding: 10px; min-height: 100vh; margin: 0; }
-        h1 { color: #38bdf8; margin: 15px 0; text-transform: uppercase; font-size: 1.1rem; }
+        h1 { color: #38bdf8; margin: 15px 0; text-transform: uppercase; font-size: 1.1rem; letter-spacing: 1px; }
         
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 1000px; margin-bottom: 15px; }
-        .card { background: #1e293b; padding: 10px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; }
-        .label { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; display: block; }
-        .value { font-size: 1.4rem; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 1000px; margin-bottom: 20px; }
+        .card { background: #1e293b; padding: 15px 5px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .label { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px; display: block; }
+        .value { font-size: 1.6rem; font-weight: bold; color: #ffffff; }
 
         .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px; }
-        .chart-container { 
-            background: #1e293b; 
-            border-radius: 16px; 
-            padding: 15px; 
-            border-left: 5px solid #38bdf8; 
-            position: relative;
-            touch-action: none; /* Kluczowe dla urządzeń mobilnych */
-        }
+        .chart-wrapper { background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); position: relative; }
         
-        .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; align-items: center; background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; }
-        .filter-bar input { background: #0f172a; border: 1px solid #334155; color: white; font-size: 0.75rem; padding: 5px; border-radius: 4px; }
-        .btn { background: #38bdf8; color: #0f172a; border: none; padding: 5px 12px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
-        .btn-reset { background: #475569; color: white; margin-left: auto; }
+        /* Kluczowe dla działania Pan na dotyk i mysz */
+        .chart-container { position: relative; height: 300px; width: 100%; touch-action: none; }
+        
+        .btn-reset { position: absolute; top: 10px; right: 15px; background: #334155; color: #94a3b8; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.6rem; cursor: pointer; z-index: 10; text-transform: uppercase; }
+        .btn-reset:hover { background: #475569; color: white; }
 
-        canvas { 
-            width: 100% !important; 
-            height: 300px !important; 
-            cursor: move; /* Kursor wskazujący na możliwość przesuwania */
-        }
-
-        #status { margin: 20px 0; font-size: 0.7rem; color: #475569; text-align: center; }
+        #status { margin-top: 25px; font-size: 0.7rem; color: #475569; }
+        #timestamp { color: #38bdf8; font-weight: bold; }
+        .instructions { font-size: 0.6rem; color: #64748b; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <h1>NADAJNIK 1: MONITORING</h1>
+    <h1>NADAJNIK 1: STATUS SYGNAŁU</h1>
     
     <div class="grid">
-        <div class="card"><span class="label">RSSI</span><span id="rssi_val" class="value">--</span></div>
-        <div class="card"><span class="label">SNR</span><span id="snr_val" class="value">--</span></div>
-        <div class="card"><span class="label">PAKIET</span><span id="pakiet_val" class="value">--</span></div>
+        <div class="card">
+            <span class="label">Moc (RSSI)</span>
+            <span id="rssi_val" class="value">--</span>
+        </div>
+        <div class="card">
+            <span class="label">Jakość (SNR)</span>
+            <span id="snr_val" class="value">--</span>
+        </div>
+        <div class="card">
+            <span class="label">Pakiet ID</span>
+            <span id="pakiet_val" class="value">--</span>
+        </div>
     </div>
 
     <div class="charts-stack">
-        <div class="chart-container" style="border-left-color: #f472b6;">
-            <div class="filter-bar">
-                <input type="datetime-local" id="snr_start">
-                <input type="datetime-local" id="snr_end">
-                <button class="btn" onclick="applyFilter('snr')">FILTRUJ</button>
-                <button class="btn btn-reset" onclick="resetZoom('snrChart')">RESET</button>
+        <div class="chart-wrapper" style="border-left: 5px solid #f472b6;">
+            <button class="btn-reset" onclick="resetZoom('snrChart')">Reset Zoom</button>
+            <div class="chart-container">
+                <canvas id="snrChart"></canvas>
             </div>
-            <canvas id="snrChart"></canvas>
         </div>
 
-        <div class="chart-container">
-            <div class="filter-bar">
-                <input type="datetime-local" id="rssi_start">
-                <input type="datetime-local" id="rssi_end">
-                <button class="btn" onclick="applyFilter('rssi')">FILTRUJ</button>
-                <button class="btn btn-reset" onclick="resetZoom('rssiChart')">RESET</button>
+        <div class="chart-wrapper" style="border-left: 5px solid #38bdf8;">
+            <button class="btn-reset" onclick="resetZoom('rssiChart')">Reset Zoom</button>
+            <div class="chart-container">
+                <canvas id="rssiChart"></canvas>
             </div>
-            <canvas id="rssiChart"></canvas>
         </div>
     </div>
 
-    <div id="status">SYNCHRONIZACJA: <span id="timestamp">ŁADOWANIE...</span></div>
+    <div id="status">AKTUALIZACJA: <span id="timestamp">ŁADOWANIE...</span></div>
+    <div class="instructions">ROLKA: POWIĘKSZANIE | KLIKNIJ I PRZECIĄGNIJ: PRZESUWANIE W POZIOMIE</div>
 
     <script>
         const USER = "S_K_";
         let charts = {};
 
-        function initChart(id, label, color, bgColor) {
+        function createChart(id, label, color, bgColor) {
             const ctx = document.getElementById(id).getContext('2d');
             charts[id] = new Chart(ctx, {
                 type: 'line',
@@ -85,77 +79,77 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: false,
                     plugins: {
                         legend: { display: false },
                         zoom: {
                             pan: {
                                 enabled: true,
                                 mode: 'x',
-                                modifierKey: null, // Pozwala przesuwać bez trzymania Ctrl
+                                modifierKey: null // Pozwala na Pan samym kliknięciem myszy
                             },
                             zoom: {
-                                wheel: { enabled: true }, // Powiększanie kółkiem myszy
-                                pinch: { enabled: true }, // Powiększanie palcami
-                                mode: 'x',
+                                wheel: { enabled: true, speed: 0.1 },
+                                pinch: { enabled: true },
+                                mode: 'x'
                             }
                         }
                     },
                     scales: {
-                        x: { ticks: { color: '#475569', font: { size: 9 } }, grid: { display: false } },
-                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+                        x: { ticks: { color: '#475569', font: { size: 9 }, maxRotation: 0 }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: '#334155' } }
                     }
                 }
             });
         }
 
-        async function fetchHistory(key, start = null, end = null) {
-            let url = `https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=150`;
-            if (start && end) {
-                url = `https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?start_time=${new Date(start).toISOString()}&end_time=${new Date(end).toISOString()}`;
-            }
-            const res = await fetch(url);
-            return await res.json();
+        function resetZoom(id) {
+            charts[id].resetZoom();
         }
 
-        async function applyFilter(key) {
-            const data = await fetchHistory(key, document.getElementById(key + '_start').value, document.getElementById(key + '_end').value);
-            charts[key + 'Chart'].data.labels = data.map(d => new Date(d.created_at).toLocaleString([], {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})).reverse();
-            charts[key + 'Chart'].data.datasets[0].data = data.map(d => d.value).reverse();
-            charts[key + 'Chart'].update();
-        }
-
-        function resetZoom(id) { charts[id].resetZoom(); }
-
-        async function updateLive() {
+        async function updateDashboard() {
             try {
-                const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/groups/default/feeds?cb=${Date.now()}`);
-                const group = await res.json();
-                group.forEach(f => {
-                    const el = document.getElementById(f.key + '_val');
-                    if (el) el.innerText = f.last_value;
+                // 1. Pobierz aktualne wartości (karty na górze)
+                const resGroup = await fetch(`https://io.adafruit.com/api/v2/${USER}/groups/default/feeds?cb=${Date.now()}`);
+                const groupData = await resGroup.json();
+                groupData.forEach(feed => {
+                    const el = document.getElementById(feed.key + '_val');
+                    if (el && feed.last_value !== null) el.innerText = feed.last_value;
                 });
 
-                if (!document.getElementById('snr_start').value) {
-                    const snrData = await fetchHistory('snr');
-                    charts['snrChart'].data.labels = snrData.map(d => new Date(d.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})).reverse();
-                    charts['snrChart'].data.datasets[0].data = snrData.map(d => d.value).reverse();
-                    charts['snrChart'].update('none');
-                }
-                
-                if (!document.getElementById('rssi_start').value) {
-                    const rssiData = await fetchHistory('rssi');
-                    charts['rssiChart'].data.labels = rssiData.map(d => new Date(d.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})).reverse();
-                    charts['rssiChart'].data.datasets[0].data = rssiData.map(d => d.value).reverse();
-                    charts['rssiChart'].update('none');
-                }
+                // 2. Pobierz historię dla wykresów (200 punktów dla lepszej analizy)
+                const fetchKey = async (key, chartId) => {
+                    // Sprawdzamy czy użytkownik aktualnie używa zoomu/panu
+                    // Jeśli tak, nie odświeżamy danych, by nie psuć widoku
+                    if (charts[chartId].isZoomedOrPanned && charts[chartId].isZoomedOrPanned()) return;
+
+                    const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=200`);
+                    const history = await res.json();
+                    
+                    const labels = history.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
+                    const values = history.map(d => d.value).reverse();
+
+                    charts[chartId].data.labels = labels;
+                    charts[chartId].data.datasets[0].data = values;
+                    charts[chartId].update('none'); 
+                };
+
+                await fetchKey('snr', 'snrChart');
+                await fetchKey('rssi', 'rssiChart');
+
                 document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
-            } catch (e) {}
+            } catch (e) {
+                console.error("Błąd pobierania danych:", e);
+            }
         }
 
-        initChart('snrChart', 'SNR', '#f472b6', 'rgba(244, 114, 182, 0.1)');
-        initChart('rssiChart', 'RSSI', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
-        updateLive();
-        setInterval(updateLive, 30000);
+        // Inicjalizacja
+        createChart('snrChart', 'SNR (dB)', '#f472b6', 'rgba(244, 114, 182, 0.1)');
+        createChart('rssiChart', 'RSSI (dBm)', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
+
+        // Pierwsze ładowanie i interwał
+        updateDashboard();
+        setInterval(updateDashboard, 20000);
     </script>
 </body>
 </html>

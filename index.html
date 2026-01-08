@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Monitor: Nadajnik 1</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
@@ -11,25 +11,36 @@
         h1 { color: #38bdf8; margin: 15px 0; text-transform: uppercase; font-size: 1.1rem; letter-spacing: 1px; }
         
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 1000px; margin-bottom: 15px; }
-        .card { background: #1e293b; padding: 10px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .card { background: #1e293b; padding: 10px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; }
         .label { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; display: block; }
         .value { font-size: 1.4rem; font-weight: bold; }
 
         .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px; }
-        .chart-container { background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); border-left: 5px solid #38bdf8; position: relative; }
+        .chart-container { 
+            background: #1e293b; 
+            border-radius: 16px; 
+            padding: 15px; 
+            box-shadow: 0 10px 15px rgba(0,0,0,0.5); 
+            border-left: 5px solid #38bdf8; 
+            position: relative;
+            /* KLUCZOWE: Blokuje domyślne gesty przeglądarki na wykresie */
+            touch-action: none; 
+        }
         
         .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; align-items: center; background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; }
-        .filter-bar input { background: #0f172a; border: 1px solid #334155; color: white; font-size: 0.75rem; padding: 5px; border-radius: 4px; outline: none; }
-        .btn { background: #38bdf8; color: #0f172a; border: none; padding: 5px 12px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; cursor: pointer; transition: opacity 0.2s; }
-        .btn:hover { opacity: 0.8; }
+        .filter-bar input { background: #0f172a; border: 1px solid #334155; color: white; font-size: 0.75rem; padding: 5px; border-radius: 4px; }
+        .btn { background: #38bdf8; color: #0f172a; border: none; padding: 5px 12px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
         .btn-reset { background: #475569; color: white; margin-left: auto; }
 
-        canvas { width: 100% !important; height: 300px !important; cursor: crosshair; }
+        canvas { 
+            width: 100% !important; 
+            height: 300px !important; 
+            cursor: grab; /* Zmienia kursor na rączkę */
+        }
         canvas:active { cursor: grabbing; }
 
         #status { margin: 20px 0; font-size: 0.7rem; color: #475569; text-align: center; }
         #timestamp { color: #38bdf8; font-weight: bold; }
-        .hint { font-size: 0.6rem; color: #64748b; margin-top: 5px; text-align: center; width: 100%; }
     </style>
 </head>
 <body>
@@ -45,31 +56,26 @@
     <div class="charts-stack">
         <div class="chart-container" style="border-left-color: #f472b6;">
             <div class="filter-bar">
-                <span class="label" style="color:#f472b6">SNR OD:</span>
                 <input type="datetime-local" id="snr_start">
-                <span class="label">DO:</span>
                 <input type="datetime-local" id="snr_end">
                 <button class="btn" onclick="applyFilter('snr')">FILTRUJ</button>
-                <button class="btn btn-reset" onclick="resetZoom('snrChart')">RESET ZOOM</button>
+                <button class="btn btn-reset" onclick="resetZoom('snrChart')">RESET</button>
             </div>
             <canvas id="snrChart"></canvas>
         </div>
 
         <div class="chart-container">
             <div class="filter-bar">
-                <span class="label" style="color:#38bdf8">RSSI OD:</span>
                 <input type="datetime-local" id="rssi_start">
-                <span class="label">DO:</span>
                 <input type="datetime-local" id="rssi_end">
                 <button class="btn" onclick="applyFilter('rssi')">FILTRUJ</button>
-                <button class="btn btn-reset" onclick="resetZoom('rssiChart')">RESET ZOOM</button>
+                <button class="btn btn-reset" onclick="resetZoom('rssiChart')">RESET</button>
             </div>
             <canvas id="rssiChart"></canvas>
         </div>
     </div>
 
-    <div id="status">OSTATNIA SYNCHRONIZACJA: <span id="timestamp">ŁADOWANIE...</span></div>
-    <div class="hint">Rolka/Gesty: Zoom | Przeciągnij: Przesuwanie | Przycisk: Reset widoku</div>
+    <div id="status">ODŚWIEŻONO: <span id="timestamp">--:--:--</span></div>
 
     <script>
         const USER = "S_K_";
@@ -79,20 +85,27 @@
             const ctx = document.getElementById(id).getContext('2d');
             charts[id] = new Chart(ctx, {
                 type: 'line',
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: bgColor, borderWidth: 2, fill: true, tension: 0.3, pointRadius: 2, pointHoverRadius: 5 }] },
+                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: bgColor, borderWidth: 2, fill: true, tension: 0.3, pointRadius: 2 }] },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
                     plugins: {
                         legend: { display: false },
                         zoom: {
-                            pan: { enabled: true, mode: 'x', modifierKey: null },
-                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                            pan: {
+                                enabled: true,
+                                mode: 'x',
+                                threshold: 10 // Minimalny ruch przed przesunięciem
+                            },
+                            zoom: {
+                                wheel: { enabled: true },
+                                pinch: { enabled: true },
+                                mode: 'x'
+                            }
                         }
                     },
                     scales: {
-                        x: { ticks: { color: '#475569', font: { size: 9 }, maxRotation: 0 }, grid: { display: false } },
+                        x: { ticks: { color: '#475569', font: { size: 9 } }, grid: { display: false } },
                         y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
                     }
                 }
@@ -113,7 +126,7 @@
         async function applyFilter(key) {
             const start = document.getElementById(key + '_start').value;
             const end = document.getElementById(key + '_end').value;
-            if (!start || !end) return alert("Wprowadź datę początku i końca!");
+            if (!start || !end) return;
 
             const data = await fetchHistory(key, start, end);
             const chartId = key + 'Chart';
@@ -122,11 +135,12 @@
             charts[chartId].update();
         }
 
-        function resetZoom(id) { charts[id].resetZoom(); }
+        function resetZoom(id) {
+            charts[id].resetZoom();
+        }
 
         async function updateLive() {
             try {
-                // Odczyty bieżące
                 const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/groups/default/feeds?cb=${Date.now()}`);
                 const group = await res.json();
                 group.forEach(f => {
@@ -134,7 +148,7 @@
                     if (el) el.innerText = f.last_value;
                 });
 
-                // Auto-odświeżanie historii tylko gdy filtry są puste
+                // Auto-odświeżanie tylko gdy filtry są puste
                 if (!document.getElementById('snr_start').value) {
                     const snrData = await fetchHistory('snr');
                     charts['snrChart'].data.labels = snrData.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
@@ -150,11 +164,11 @@
                 }
 
                 document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
-            } catch (e) { console.error("Sync Error:", e); }
+            } catch (e) { console.error(e); }
         }
 
-        initChart('snrChart', 'SNR (dB)', '#f472b6', 'rgba(244, 114, 182, 0.1)');
-        initChart('rssiChart', 'RSSI (dBm)', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
+        initChart('snrChart', 'SNR', '#f472b6', 'rgba(244, 114, 182, 0.1)');
+        initChart('rssiChart', 'RSSI', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
         
         updateLive();
         setInterval(updateLive, 30000);

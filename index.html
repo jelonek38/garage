@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Monitor 433MHz: Naprawa Zoom Y</title>
+    <title>Monitor 433MHz: Auto-Centrowanie</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
     <style>
@@ -24,7 +24,7 @@
         .btn-nav:hover { background: #38bdf8; color: #0f172a; }
         
         .btn-zoom { background: #0369a1; }
-        .btn-reset-top { position: absolute; top: 10px; right: 10px; background: rgba(71, 85, 105, 0.7); padding: 5px 10px; font-size: 0.6rem; border-radius: 4px; border: none; color: white; cursor: pointer; }
+        .btn-reset-top { position: absolute; top: 10px; right: 10px; background: rgba(71, 85, 105, 0.7); padding: 5px 10px; font-size: 0.6rem; border-radius: 4px; border: none; color: white; cursor: pointer; z-index: 10; }
 
         #status { margin-top: 25px; font-size: 0.7rem; color: #475569; }
         #timestamp { color: #38bdf8; font-weight: bold; }
@@ -47,8 +47,8 @@
             <div class="controls-row">
                 <button class="btn-nav" onclick="moveX('snrChart', 150)">◀ LEWO</button>
                 <button class="btn-nav" onclick="moveX('snrChart', -150)">PRAWO ▶</button>
-                <button class="btn-nav btn-zoom" onclick="manualZoomY('snrChart', 0.8)">ZOOM +</button>
-                <button class="btn-nav btn-zoom" onclick="manualZoomY('snrChart', 1.2)">ZOOM -</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 0.7)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 1.3)">ZOOM -</button>
             </div>
         </div>
 
@@ -58,8 +58,8 @@
             <div class="controls-row">
                 <button class="btn-nav" onclick="moveX('rssiChart', 150)">◀ LEWO</button>
                 <button class="btn-nav" onclick="moveX('rssiChart', -150)">PRAWO ▶</button>
-                <button class="btn-nav btn-zoom" onclick="manualZoomY('rssiChart', 0.8)">ZOOM +</button>
-                <button class="btn-nav btn-zoom" onclick="manualZoomY('rssiChart', 1.2)">ZOOM -</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 0.7)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 1.3)">ZOOM -</button>
             </div>
         </div>
     </div>
@@ -78,7 +78,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: { duration: 200 },
+                    animation: { duration: 300 },
                     plugins: {
                         legend: { display: false },
                         zoom: {
@@ -94,31 +94,39 @@
             });
         }
 
-        // Przesuwanie w poziomie
         function moveX(id, amount) {
             charts[id].pan({ x: amount }, undefined, 'default');
         }
 
-        // Ręczny Zoom Pionowy (zmienia zakres min/max osi Y)
-        function manualZoomY(id, factor) {
+        // Nowa funkcja inteligentnego zoomu z centrowaniem na danych
+        function smartZoomY(id, factor) {
             const chart = charts[id];
-            const yScale = chart.scales.y;
-            const currentMin = yScale.min;
-            const currentMax = yScale.max;
-            const range = currentMax - currentMin;
-            const center = (currentMax + currentMin) / 2;
-
-            // Obliczamy nowy zakres
-            const newRange = range * factor;
-            chart.options.scales.y.min = center - newRange / 2;
-            chart.options.scales.y.max = center + newRange / 2;
+            const data = chart.data.datasets[0].data;
             
-            chart.update('none');
+            if (data.length === 0) return;
+
+            // 1. Znajdujemy aktualnie widoczne dane lub ostatnie punkty
+            const lastValues = data.slice(-20).map(Number);
+            const average = lastValues.reduce((a, b) => a + b, 0) / lastValues.length;
+
+            // 2. Pobieramy aktualny zakres
+            const currentMin = chart.options.scales.y.min;
+            const currentMax = chart.options.scales.y.max;
+            const currentRange = currentMax - currentMin;
+
+            // 3. Obliczamy nowy zakres (rozciągnięcie/zwężenie)
+            const newRange = currentRange * factor;
+
+            // 4. Ustawiamy nowy zakres wycentrowany na średniej wartości danych
+            chart.options.scales.y.min = average - (newRange / 2);
+            chart.options.scales.y.max = average + (newRange / 2);
+            
+            chart.update();
         }
 
         function resetZoom(id, defaultMin, defaultMax) {
             const chart = charts[id];
-            chart.resetZoom(); // Resetuje Pan na osi X
+            chart.resetZoom();
             chart.options.scales.y.min = defaultMin;
             chart.options.scales.y.max = defaultMax;
             chart.update();
@@ -142,7 +150,6 @@
                     charts[chartId].data.labels = labels;
                     charts[chartId].data.datasets[0].data = values;
                     
-                    // Aktualizuj dane tylko jeśli nie przesunięto osi X
                     if (charts[chartId].getZoomLevel && charts[chartId].getZoomLevel() === 1) {
                         charts[chartId].update('none');
                     }

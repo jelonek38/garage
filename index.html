@@ -3,70 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Garaż: Inteligentny Dashboard</title>
+    <title>Garaż: Dashboard Advanced</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; padding: 10px; min-height: 100vh; margin: 0; }
-        h1 { color: #38bdf8; margin: 20px 0; text-transform: uppercase; font-size: 1.2rem; }
+        h1 { color: #38bdf8; margin: 15px 0; text-transform: uppercase; font-size: 1.1rem; }
         
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 1000px; margin-bottom: 20px; }
-        .card { background: #1e293b; padding: 15px 5px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; }
-        .label { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px; display: block; }
-        .value { font-size: 1.6rem; font-weight: bold; color: #ffffff; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 1000px; margin-bottom: 15px; }
+        .card { background: #1e293b; padding: 10px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; }
+        .label { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; display: block; }
+        .value { font-size: 1.4rem; font-weight: bold; }
 
         .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px; }
-        .chart-container { background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); position: relative; cursor: crosshair; }
-        .snr-border { border-left: 5px solid #f472b6; }
-        .rssi-border { border-left: 5px solid #38bdf8; }
+        .chart-container { background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); border-left: 5px solid #38bdf8; }
         
-        .chart-info { font-size: 0.7rem; color: #475569; margin-bottom: 10px; display: block; }
-        canvas { width: 100% !important; height: 300px !important; }
+        /* Styl filtrów */
+        .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: center; background: #0f172a; padding: 8px; border-radius: 8px; }
+        .filter-bar input { background: #1e293b; border: 1px solid #334155; color: white; font-size: 0.7rem; padding: 4px; border-radius: 4px; }
+        .btn { background: #38bdf8; color: #0f172a; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
+        .btn-reset { background: #475569; color: white; margin-left: auto; }
 
-        #status { margin: 25px 0; font-size: 0.7rem; color: #475569; background: #1e293b; padding: 6px 15px; border-radius: 15px; }
-        .hint { font-size: 0.6rem; color: #64748b; margin-top: 5px; }
+        canvas { width: 100% !important; height: 260px !important; cursor: grab; }
+        canvas:active { cursor: grabbing; }
+
+        #status { margin: 20px 0; font-size: 0.7rem; color: #475569; }
     </style>
 </head>
 <body>
 
-    <h1>GARAŻ: STATUS SYGNAŁU</h1>
+    <h1>GARAŻ: SYSTEM ANALITYCZNY</h1>
     
     <div class="grid">
-        <div class="card">
-            <span class="label">Moc (RSSI)</span>
-            <span id="rssi_val" class="value">--</span>
-        </div>
-        <div class="card">
-            <span class="label">Jakość (SNR)</span>
-            <span id="snr_val" class="value">--</span>
-        </div>
-        <div class="card">
-            <span class="label">Pakiet</span>
-            <span id="pakiet_val" class="value">--</span>
-        </div>
+        <div class="card"><span class="label">RSSI</span><span id="rssi_val" class="value">--</span></div>
+        <div class="card"><span class="label">SNR</span><span id="snr_val" class="value">--</span></div>
+        <div class="card"><span class="label">PAKIET</span><span id="pakiet_val" class="value">--</span></div>
     </div>
 
     <div class="charts-stack">
-        <div class="chart-container snr-border" onclick="resetZoom('snrChart')">
-            <span class="chart-info">HISTORIA SNR (Użyj kółka myszy aby powiększyć)</span>
+        <div class="chart-container" style="border-left-color: #f472b6;">
+            <div class="filter-bar">
+                <span class="label" style="color:#f472b6">SNR Od:</span>
+                <input type="datetime-local" id="snr_start">
+                <span class="label">Do:</span>
+                <input type="datetime-local" id="snr_end">
+                <button class="btn" onclick="applyFilter('snr')">Filtruj</button>
+                <button class="btn btn-reset" onclick="resetZoom('snrChart')">Reset Zoom</button>
+            </div>
             <canvas id="snrChart"></canvas>
         </div>
 
-        <div class="chart-container rssi-border" onclick="resetZoom('rssiChart')">
-            <span class="chart-info">HISTORIA RSSI (Przesuwaj aby przeglądać)</span>
+        <div class="chart-container">
+            <div class="filter-bar">
+                <span class="label" style="color:#38bdf8">RSSI Od:</span>
+                <input type="datetime-local" id="rssi_start">
+                <span class="label">Do:</span>
+                <input type="datetime-local" id="rssi_end">
+                <button class="btn" onclick="applyFilter('rssi')">Filtruj</button>
+                <button class="btn btn-reset" onclick="resetZoom('rssiChart')">Reset Zoom</button>
+            </div>
             <canvas id="rssiChart"></canvas>
         </div>
     </div>
 
-    <div id="status">Status: <span id="timestamp">Ładowanie...</span></div>
-    <div class="hint">Kliknij w wykres, aby zresetować powiększenie.</div>
+    <div id="status">Aktualizacja: <span id="timestamp">Ładowanie...</span></div>
 
     <script>
         const USER = "S_K_";
-        const DATA_LIMIT = 100; // Zwiększyłem do 100 punktów, żeby było co powiększać
         let charts = {};
 
-        function createChart(id, color, bgColor) {
+        function initChart(id, color, bgColor) {
             const ctx = document.getElementById(id).getContext('2d');
             charts[id] = new Chart(ctx, {
                 type: 'line',
@@ -77,51 +83,16 @@
                     plugins: {
                         legend: { display: false },
                         zoom: {
-                            pan: { enabled: true, mode: 'x' },
+                            pan: { enabled: true, mode: 'x', threshold: 5 },
                             zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
                         }
                     },
                     scales: {
-                        x: { grid: { display: false }, ticks: { color: '#475569', font: { size: 9 } } },
-                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+                        x: { ticks: { color: '#475569', font: { size: 9 } }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
                     }
                 }
             });
         }
 
-        function resetZoom(id) { charts[id].resetZoom(); }
-
-        async function updateDashboard() {
-            try {
-                // 1. Aktualne dane
-                const resGroup = await fetch(`https://io.adafruit.com/api/v2/${USER}/groups/default/feeds?cb=${Date.now()}`);
-                const groupData = await resGroup.json();
-                groupData.forEach(feed => {
-                    const el = document.getElementById(feed.key + '_val');
-                    if (el && feed.last_value !== null) el.innerText = feed.last_value;
-                });
-
-                // 2. Historia dla wykresów
-                const updateHistory = async (key, chartId) => {
-                    const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=${DATA_LIMIT}`);
-                    const history = await res.json();
-                    charts[chartId].data.labels = history.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
-                    charts[chartId].data.datasets[0].data = history.map(d => d.value).reverse();
-                    charts[chartId].update('none'); // Update bez animacji, żeby nie psuć zoomu
-                };
-
-                await updateHistory('snr', 'snrChart');
-                await updateHistory('rssi', 'rssiChart');
-
-                document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
-            } catch (e) { console.error(e); }
-        }
-
-        createChart('snrChart', '#f472b6', 'rgba(244, 114, 182, 0.1)');
-        createChart('rssiChart', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
-
-        updateDashboard();
-        setInterval(updateDashboard, 30000);
-    </script>
-</body>
-</html>
+        async function fetchHistory(key, start

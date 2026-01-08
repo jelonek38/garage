@@ -3,83 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitor Garażu LoRa</title>
+    <title>Monitor Garażu - Skaner API</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #0f172a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; width: 90%; max-width: 800px; }
-        .card { background: #1e293b; padding: 25px; border-radius: 16px; border-top: 4px solid #38bdf8; text-align: center; box-shadow: 0 10px 15px rgba(0,0,0,0.5); }
-        .val { font-size: 2.8rem; font-weight: bold; color: #38bdf8; display: block; }
-        .label { color: #94a3b8; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; margin-bottom: 10px; }
-        #status { margin-top: 30px; font-size: 0.8rem; color: #475569; border: 1px solid #334155; padding: 10px 20px; border-radius: 20px; }
-        #debug { margin-top: 15px; background: #000; color: #4ade80; padding: 15px; font-family: monospace; font-size: 11px; text-align: left; width: 90%; max-width: 600px; border-radius: 8px; border: 1px solid #444; overflow-x: auto; }
+        body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; padding: 20px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin: 10px; display: inline-block; min-width: 150px; border-top: 4px solid #38bdf8; }
+        .val { font-size: 2.5rem; font-weight: bold; color: #38bdf8; display: block; }
+        #debug { margin-top: 30px; background: #000; color: #4ade80; padding: 15px; font-family: monospace; font-size: 11px; text-align: left; max-width: 700px; margin: 0 auto; border-radius: 8px; border: 1px solid #334155; height: 250px; overflow-y: auto; }
     </style>
 </head>
 <body>
 
-    <h1 style="color:#38bdf8; margin-bottom:40px;">STATUS GARAŻU LIVE</h1>
+    <h1>SKANER SYSTEMU GARAŻ</h1>
     
-    <div class="grid">
-        <div class="card">
-            <span class="label">Moc Sygnału (RSSI)</span>
-            <span id="rssi_v" class="val">--</span>
-        </div>
-        <div class="card">
-            <span class="label">Jakość (SNR)</span>
-            <span id="snr_v" class="val">--</span>
-        </div>
-        <div class="card">
-            <span class="label">Pakiet ID</span>
-            <span id="pakiet_v" class="val">--</span>
-        </div>
-    </div>
+    <div class="card"><span>RSSI</span><span id="rssi_v" class="val">--</span></div>
+    <div class="card"><span>SNR</span><span id="snr_v" class="val">--</span></div>
+    <div class="card"><span>PAKIET</span><span id="pakiet_v" class="val">--</span></div>
 
-    <div id="status">Aktualizacja: <span id="clock">Oczekiwanie...</span></div>
-    
-    <div id="debug">--- LOGI DIAGNOSTYCZNE ---<br></div>
+    <div id="debug">--- INICJALIZACJA SKANERA ---<br></div>
 
     <script>
-        const USER = "S_K_"; 
-        const FEEDS = ['rssi', 'snr', 'pakiet'];
+        const USER = "S_K_";
 
-        async function updateData() {
+        async function scanAndFetch() {
             const debug = document.getElementById('debug');
-            const clock = document.getElementById('clock');
-            debug.innerHTML = "Rozpoczynam skanowanie...<br>";
+            debug.innerHTML += `[${new Date().toLocaleTimeString()}] Pobieram listę wszystkich kanałów dla ${USER}...<br>`;
 
-            for (const f of FEEDS) {
-                // Próbujemy dwóch różnych struktur URL, które Adafruit akceptuje
-                const urls = [
-                    `https://io.adafruit.com/api/v2/${USER}/feeds/${f}/data/last`,
-                    `https://io.adafruit.com/api/v2/${USER}/groups/default/feeds/${f}/data/last`
-                ];
+            try {
+                // KROK 1: Pobierz listę wszystkich dostępnych feedów użytkownika
+                const listRes = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds`);
+                
+                if (!listRes.ok) {
+                    debug.innerHTML += `<span style="color:red">BŁĄD KRYTYCZNY: Serwer zwrócił ${listRes.status}. Czy na pewno Twój login to ${USER}?</span><br>`;
+                    return;
+                }
 
-                let found = false;
-                for (const url of urls) {
-                    try {
-                        const response = await fetch(url);
-                        if (response.ok) {
-                            const data = await response.json();
-                            document.getElementById(f + '_v').innerText = data.value;
-                            debug.innerHTML += `<span style="color:white">OK: ${f} -> ${data.value} (z adresu: ${url})</span><br>`;
-                            found = true;
-                            break; 
+                const allFeeds = await listRes.json();
+                debug.innerHTML += `Znaleziono ${allFeeds.length} kanałów w Twoim profilu.<br>`;
+
+                // KROK 2: Wyświetl nazwy znalezionych kanałów w logu dla pewności
+                const foundKeys = allFeeds.map(f => f.key);
+                debug.innerHTML += `Dostępne klucze (Keys): <span style="color:yellow">${foundKeys.join(", ")}</span><br>`;
+
+                // KROK 3: Spróbuj pobrać dane dla naszych trzech kluczy
+                const targets = ['rssi', 'snr', 'pakiet'];
+                
+                for (const t of targets) {
+                    const foundFeed = allFeeds.find(f => f.key.toLowerCase() === t.toLowerCase());
+                    
+                    if (foundFeed) {
+                        debug.innerHTML += `Próbuję pobrać wartość dla ${foundFeed.key}...<br>`;
+                        const dataRes = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${foundFeed.key}/data/last`);
+                        if (dataRes.ok) {
+                            const data = await dataRes.json();
+                            document.getElementById(t + '_v').innerText = data.value;
+                            debug.innerHTML += `<span style="color:#4ade80">Sukces: ${foundFeed.key} = ${data.value}</span><br>`;
                         }
-                    } catch (e) {
-                        debug.innerHTML += `Błąd sieci dla ${f}<br>`;
+                    } else {
+                        debug.innerHTML += `<span style="color:red">NIE ZNALEZIONO klucza "${t}" na liście serwera!</span><br>`;
                     }
                 }
 
-                if (!found) {
-                    debug.innerHTML += `<span style="color:#f87171">BŁĄD: Nie znaleziono feedu "${f}" pod żadnym adresem.</span><br>`;
-                }
+            } catch (e) {
+                debug.innerHTML += `<span style="color:red">Błąd sieci: ${e.message}</span><br>`;
             }
-            clock.innerText = new Date().toLocaleTimeString();
         }
 
-        // Start
-        updateData();
-        // Odświeżaj co 15 sekund
-        setInterval(updateData, 15000);
+        scanAndFetch();
+        setInterval(scanAndFetch, 30000); // Odświeżaj co 30 sekund
     </script>
 </body>
 </html>

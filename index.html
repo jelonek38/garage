@@ -5,69 +5,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitor Garażu</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; width: 90%; max-width: 800px; }
-        .card { background: #1e293b; padding: 25px; border-radius: 16px; border-top: 5px solid #38bdf8; text-align: center; box-shadow: 0 10px 15px rgba(0,0,0,0.5); }
-        .val { font-size: 2.5rem; font-weight: bold; color: #38bdf8; }
-        .label { color: #94a3b8; text-transform: uppercase; font-size: 0.75rem; margin-bottom: 10px; display: block; }
-        #status { margin-top: 30px; font-size: 0.8rem; color: #475569; }
-        #debug { color: #f87171; font-size: 0.7rem; margin-top: 10px; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: white; text-align: center; padding: 20px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin: 10px; display: inline-block; min-width: 160px; border-bottom: 4px solid #38bdf8; }
+        .val { font-size: 2rem; font-weight: bold; color: #38bdf8; display: block; }
+        #status { margin-top: 20px; font-size: 0.9rem; color: #94a3b8; }
+        #debug-console { margin-top: 30px; background: black; color: #4ade80; padding: 15px; font-family: monospace; font-size: 11px; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto; border-radius: 5px; height: 150px; overflow-y: scroll; border: 1px solid #333; }
     </style>
 </head>
 <body>
 
-    <h1 style="color:#38bdf8">MONITOR GARAŻU</h1>
+    <h1>GARAŻ: MONITOR</h1>
     
-    <div class="grid">
-        <div class="card">
-            <span class="label">Moc Sygnału (RSSI)</span>
-            <span id="rssi_val" class="val">--</span>
-        </div>
-        <div class="card">
-            <span class="label">Jakość (SNR)</span>
-            <span id="snr_val" class="val">--</span>
-        </div>
-        <div class="card">
-            <span class="label">ID Pakietu</span>
-            <span id="pakiet_val" class="val">--</span>
-        </div>
-    </div>
+    <div class="card"><span>RSSI</span><span id="rssi_v" class="val">--</span></div>
+    <div class="card"><span>SNR</span><span id="snr_v" class="val">--</span></div>
+    <div class="card"><span>PAKIET</span><span id="pakiet_v" class="val">--</span></div>
 
-    <div id="status">Aktualizacja: <span id="clock">...</span></div>
-    <div id="debug"></div>
+    <div id="status">Status: Inicjalizacja...</div>
+    
+    <div id="debug-console">--- KONSOLA DIAGNOSTYCZNA ---<br></div>
 
     <script>
-        // SPRAWDŹMY WSZYSTKIE MOŻLIWE WERSJE TWOJEGO LOGUNU
-        const USER = "S_K_"; 
+        const USER = "S_K_"; // Twój login
         const FEEDS = ['rssi', 'snr', 'pakiet'];
 
+        function log(msg) {
+            const consoleEl = document.getElementById('debug-console');
+            consoleEl.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
         async function update() {
-            let errorLog = "";
+            log("Rozpoczynam pobieranie...");
+            document.getElementById('status').innerText = "Status: Pobieranie danych...";
             
             for (const f of FEEDS) {
                 try {
-                    // Próbujemy pobrać dane z Adyfruit
-                    const response = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${f}/data/last`);
+                    const url = `https://io.adafruit.com/api/v2/${USER}/feeds/${f}/data/last`;
+                    log(`Łączę z: ${f}...`);
+                    
+                    const response = await fetch(url);
                     
                     if (response.ok) {
                         const data = await response.json();
-                        // Szukamy elementu o id rssi_val, snr_val lub pakiet_val
-                        document.getElementById(f + '_val').innerText = data.value;
+                        document.getElementById(f + '_v').innerText = data.value;
+                        log(`Sukces: ${f} = ${data.value}`);
                     } else {
-                        errorLog += `Błąd ${response.status} dla ${f} | `;
+                        log(`BŁĄD ${response.status}: Serwer odrzucił zapytanie dla ${f}`);
                     }
                 } catch (e) {
-                    errorLog += `Błąd sieci | `;
+                    log(`BŁĄD KRYTYCZNY: ${e.message}`);
                 }
             }
-            
-            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
-            document.getElementById('debug').innerText = errorLog;
+            document.getElementById('status').innerText = "Ostatnia próba: " + new Date().toLocaleTimeString();
         }
 
-        // Pobieraj dane co 15 sekund
-        setInterval(update, 15000);
+        // Start
         update();
+        setInterval(update, 20000);
     </script>
 </body>
 </html>

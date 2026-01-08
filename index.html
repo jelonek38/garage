@@ -3,83 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Garaż Monitor LoRa</title>
+    <title>Monitor Garażu LoRa</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; text-align: center; padding: 20px; margin: 0; display: flex; flex-direction: column; min-height: 100vh; justify-content: center; }
-        .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 20px; }
-        .card { background: #1e293b; padding: 30px; border-radius: 16px; min-width: 200px; border-top: 4px solid #38bdf8; box-shadow: 0 10px 15px rgba(0,0,0,0.5); }
-        .label { color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; display: block; }
-        .val { font-size: 3rem; font-weight: bold; color: #38bdf8; }
-        #status { margin-top: 40px; color: #475569; font-size: 0.85rem; }
-        #debug { margin-top: 20px; background: #000; color: #4ade80; padding: 15px; font-family: monospace; font-size: 10px; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto; border-radius: 8px; border: 1px solid #334155; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #0f172a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; width: 90%; max-width: 800px; }
+        .card { background: #1e293b; padding: 25px; border-radius: 16px; border-top: 4px solid #38bdf8; text-align: center; box-shadow: 0 10px 15px rgba(0,0,0,0.5); }
+        .val { font-size: 2.8rem; font-weight: bold; color: #38bdf8; display: block; }
+        .label { color: #94a3b8; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; margin-bottom: 10px; }
+        #status { margin-top: 30px; font-size: 0.8rem; color: #475569; border: 1px solid #334155; padding: 10px 20px; border-radius: 20px; }
+        #debug { margin-top: 15px; background: #000; color: #4ade80; padding: 15px; font-family: monospace; font-size: 11px; text-align: left; width: 90%; max-width: 600px; border-radius: 8px; border: 1px solid #444; overflow-x: auto; }
     </style>
 </head>
 <body>
 
-    <h1>STATUS GARAŻU LIVE</h1>
+    <h1 style="color:#38bdf8; margin-bottom:40px;">STATUS GARAŻU LIVE</h1>
     
     <div class="grid">
         <div class="card">
-            <span class="label">Moc Sygnału</span>
+            <span class="label">Moc Sygnału (RSSI)</span>
             <span id="rssi_v" class="val">--</span>
         </div>
         <div class="card">
-            <span class="label">Jakość SNR</span>
+            <span class="label">Jakość (SNR)</span>
             <span id="snr_v" class="val">--</span>
         </div>
         <div class="card">
-            <span class="label">Ostatni Pakiet</span>
+            <span class="label">Pakiet ID</span>
             <span id="pakiet_v" class="val">--</span>
         </div>
     </div>
 
-    <div id="status">Aktualizacja: <span id="time">Czekam na dane...</span></div>
+    <div id="status">Aktualizacja: <span id="clock">Oczekiwanie...</span></div>
     
-    <div id="debug">--- LOGI SYSTEMOWE ---<br></div>
+    <div id="debug">--- LOGI DIAGNOSTYCZNE ---<br></div>
 
     <script>
-        const USER = "S_K_";
+        const USER = "S_K_"; 
         const FEEDS = ['rssi', 'snr', 'pakiet'];
 
-        async function update() {
+        async function updateData() {
             const debug = document.getElementById('debug');
-            const time = document.getElementById('time');
-            
-            debug.innerHTML = "Próba pobrania danych przez ścieżkę grupową...<br>";
+            const clock = document.getElementById('clock');
+            debug.innerHTML = "Rozpoczynam skanowanie...<br>";
 
             for (const f of FEEDS) {
-                // Używamy pełnej ścieżki z uwzględnieniem grupy 'default'
-                // To rozwiązuje błąd 404, gdy feedy są przypisane do domyślnej grupy
-                const url = `https://io.adafruit.com/api/v2/${USER}/groups/default/feeds/${f}/data/last`;
-                
-                try {
-                    const response = await fetch(url);
-                    if (response.ok) {
-                        const data = await response.json();
-                        document.getElementById(f + '_v').innerText = data.value;
-                        debug.innerHTML += `<span style="color:white">OK: ${f} = ${data.value}</span><br>`;
-                    } else {
-                        debug.innerHTML += `<span style="color:#f87171">Błąd ${response.status} dla ${f}</span><br>`;
-                        
-                        // Jeśli grupa 'default' nie działa, spróbujmy bez grupy jako plan B
-                        const backupUrl = `https://io.adafruit.com/api/v2/${USER}/feeds/${f}/data/last`;
-                        const backupRes = await fetch(backupUrl);
-                        if (backupRes.ok) {
-                            const backupData = await backupRes.json();
-                            document.getElementById(f + '_v').innerText = backupData.value;
-                            debug.innerHTML += `<span style="color:white">OK (Plan B): ${f} = ${backupData.value}</span><br>`;
+                // Próbujemy dwóch różnych struktur URL, które Adafruit akceptuje
+                const urls = [
+                    `https://io.adafruit.com/api/v2/${USER}/feeds/${f}/data/last`,
+                    `https://io.adafruit.com/api/v2/${USER}/groups/default/feeds/${f}/data/last`
+                ];
+
+                let found = false;
+                for (const url of urls) {
+                    try {
+                        const response = await fetch(url);
+                        if (response.ok) {
+                            const data = await response.json();
+                            document.getElementById(f + '_v').innerText = data.value;
+                            debug.innerHTML += `<span style="color:white">OK: ${f} -> ${data.value} (z adresu: ${url})</span><br>`;
+                            found = true;
+                            break; 
                         }
+                    } catch (e) {
+                        debug.innerHTML += `Błąd sieci dla ${f}<br>`;
                     }
-                } catch (e) {
-                    debug.innerHTML += `<span style="color:#f87171">Błąd sieci!</span><br>`;
+                }
+
+                if (!found) {
+                    debug.innerHTML += `<span style="color:#f87171">BŁĄD: Nie znaleziono feedu "${f}" pod żadnym adresem.</span><br>`;
                 }
             }
-            time.innerText = new Date().toLocaleTimeString();
+            clock.innerText = new Date().toLocaleTimeString();
         }
 
-        // Pobierz dane od razu i odświeżaj co 15 sekund
-        update();
-        setInterval(update, 15000);
+        // Start
+        updateData();
+        // Odświeżaj co 15 sekund
+        setInterval(updateData, 15000);
     </script>
 </body>
 </html>

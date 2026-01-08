@@ -2,13 +2,13 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitor: Nadajnik 1</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; padding: 10px; min-height: 100vh; margin: 0; }
-        h1 { color: #38bdf8; margin: 15px 0; text-transform: uppercase; font-size: 1.1rem; letter-spacing: 1px; }
+        h1 { color: #38bdf8; margin: 15px 0; text-transform: uppercase; font-size: 1.1rem; }
         
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 1000px; margin-bottom: 15px; }
         .card { background: #1e293b; padding: 10px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; }
@@ -16,41 +16,25 @@
         .value { font-size: 1.4rem; font-weight: bold; }
 
         .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px; }
-        .chart-container { 
-            background: #1e293b; 
-            border-radius: 16px; 
-            padding: 15px; 
-            box-shadow: 0 10px 15px rgba(0,0,0,0.5); 
-            border-left: 5px solid #38bdf8; 
-            position: relative;
-            /* KLUCZOWE: Blokuje domyślne gesty przeglądarki na wykresie */
-            touch-action: none; 
-        }
+        .chart-container { background: #1e293b; border-radius: 16px; padding: 15px; border-left: 5px solid #38bdf8; touch-action: none; }
         
         .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; align-items: center; background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; }
         .filter-bar input { background: #0f172a; border: 1px solid #334155; color: white; font-size: 0.75rem; padding: 5px; border-radius: 4px; }
         .btn { background: #38bdf8; color: #0f172a; border: none; padding: 5px 12px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
         .btn-reset { background: #475569; color: white; margin-left: auto; }
 
-        canvas { 
-            width: 100% !important; 
-            height: 300px !important; 
-            cursor: grab; /* Zmienia kursor na rączkę */
-        }
-        canvas:active { cursor: grabbing; }
-
-        #status { margin: 20px 0; font-size: 0.7rem; color: #475569; text-align: center; }
-        #timestamp { color: #38bdf8; font-weight: bold; }
+        canvas { width: 100% !important; height: 300px !important; cursor: crosshair; }
+        #status { margin: 20px 0; font-size: 0.7rem; color: #475569; }
     </style>
 </head>
 <body>
 
-    <h1>NADAJNIK 1: MONITORING LIVE</h1>
+    <h1>NADAJNIK 1: STATUS</h1>
     
     <div class="grid">
-        <div class="card"><span class="label">RSSI (Moc)</span><span id="rssi_val" class="value">--</span></div>
-        <div class="card"><span class="label">SNR (Jakość)</span><span id="snr_val" class="value">--</span></div>
-        <div class="card"><span class="label">PAKIET ID</span><span id="pakiet_val" class="value">--</span></div>
+        <div class="card"><span class="label">RSSI</span><span id="rssi_val" class="value">--</span></div>
+        <div class="card"><span class="label">SNR</span><span id="snr_val" class="value">--</span></div>
+        <div class="card"><span class="label">PAKIET</span><span id="pakiet_val" class="value">--</span></div>
     </div>
 
     <div class="charts-stack">
@@ -59,7 +43,7 @@
                 <input type="datetime-local" id="snr_start">
                 <input type="datetime-local" id="snr_end">
                 <button class="btn" onclick="applyFilter('snr')">FILTRUJ</button>
-                <button class="btn btn-reset" onclick="resetZoom('snrChart')">RESET</button>
+                <button class="btn btn-reset" onclick="resetZoom('snrChart')">RESET WIDOKU</button>
             </div>
             <canvas id="snrChart"></canvas>
         </div>
@@ -69,13 +53,13 @@
                 <input type="datetime-local" id="rssi_start">
                 <input type="datetime-local" id="rssi_end">
                 <button class="btn" onclick="applyFilter('rssi')">FILTRUJ</button>
-                <button class="btn btn-reset" onclick="resetZoom('rssiChart')">RESET</button>
+                <button class="btn btn-reset" onclick="resetZoom('rssiChart')">RESET WIDOKU</button>
             </div>
             <canvas id="rssiChart"></canvas>
         </div>
     </div>
 
-    <div id="status">ODŚWIEŻONO: <span id="timestamp">--:--:--</span></div>
+    <div id="status">SYNCHRONIZACJA: <span id="timestamp">...</span></div>
 
     <script>
         const USER = "S_K_";
@@ -95,11 +79,11 @@
                             pan: {
                                 enabled: true,
                                 mode: 'x',
-                                threshold: 10 // Minimalny ruch przed przesunięciem
+                                modifierKey: null // Brak klawisza = przesuwanie samym kliknięciem
                             },
                             zoom: {
-                                wheel: { enabled: true },
-                                pinch: { enabled: true },
+                                drag: { enabled: true, backgroundColor: 'rgba(56, 189, 248, 0.2)' }, // Zaznaczanie myszką aby powiększyć
+                                wheel: { enabled: false }, // Wyłączone kółko, by nie psuło panowania
                                 mode: 'x'
                             }
                         }
@@ -113,31 +97,22 @@
         }
 
         async function fetchHistory(key, start = null, end = null) {
-            let url = `https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=100`;
+            let url = `https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=150`;
             if (start && end) {
-                const s = new Date(start).toISOString();
-                const e = new Date(end).toISOString();
-                url = `https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?start_time=${s}&end_time=${e}`;
+                url = `https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?start_time=${new Date(start).toISOString()}&end_time=${new Date(end).toISOString()}`;
             }
             const res = await fetch(url);
             return await res.json();
         }
 
         async function applyFilter(key) {
-            const start = document.getElementById(key + '_start').value;
-            const end = document.getElementById(key + '_end').value;
-            if (!start || !end) return;
-
-            const data = await fetchHistory(key, start, end);
-            const chartId = key + 'Chart';
-            charts[chartId].data.labels = data.map(d => new Date(d.created_at).toLocaleString([], {day:'numeric', month:'short', hour: '2-digit', minute:'2-digit'})).reverse();
-            charts[chartId].data.datasets[0].data = data.map(d => d.value).reverse();
-            charts[chartId].update();
+            const data = await fetchHistory(key, document.getElementById(key + '_start').value, document.getElementById(key + '_end').value);
+            charts[key + 'Chart'].data.labels = data.map(d => new Date(d.created_at).toLocaleString([], {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})).reverse();
+            charts[key + 'Chart'].data.datasets[0].data = data.map(d => d.value).reverse();
+            charts[key + 'Chart'].update();
         }
 
-        function resetZoom(id) {
-            charts[id].resetZoom();
-        }
+        function resetZoom(id) { charts[id].resetZoom(); }
 
         async function updateLive() {
             try {
@@ -148,28 +123,25 @@
                     if (el) el.innerText = f.last_value;
                 });
 
-                // Auto-odświeżanie tylko gdy filtry są puste
                 if (!document.getElementById('snr_start').value) {
                     const snrData = await fetchHistory('snr');
-                    charts['snrChart'].data.labels = snrData.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
+                    charts['snrChart'].data.labels = snrData.map(d => new Date(d.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})).reverse();
                     charts['snrChart'].data.datasets[0].data = snrData.map(d => d.value).reverse();
                     charts['snrChart'].update('none');
                 }
                 
                 if (!document.getElementById('rssi_start').value) {
                     const rssiData = await fetchHistory('rssi');
-                    charts['rssiChart'].data.labels = rssiData.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
+                    charts['rssiChart'].data.labels = rssiData.map(d => new Date(d.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})).reverse();
                     charts['rssiChart'].data.datasets[0].data = rssiData.map(d => d.value).reverse();
                     charts['rssiChart'].update('none');
                 }
-
                 document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
-            } catch (e) { console.error(e); }
+            } catch (e) {}
         }
 
         initChart('snrChart', 'SNR', '#f472b6', 'rgba(244, 114, 182, 0.1)');
         initChart('rssiChart', 'RSSI', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
-        
         updateLive();
         setInterval(updateLive, 30000);
     </script>

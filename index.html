@@ -4,27 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitor Garażu LoRa</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; padding: 20px; min-height: 100vh; margin: 0; }
-        h1 { color: #38bdf8; margin-bottom: 30px; letter-spacing: 2px; text-transform: uppercase; font-size: 1.5rem; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; padding: 20px; min-height: 100vh; margin: 0; }
+        h1 { color: #38bdf8; margin-bottom: 25px; text-transform: uppercase; font-size: 1.4rem; letter-spacing: 1px; }
         
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; width: 95%; max-width: 900px; margin-bottom: 25px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; width: 95%; max-width: 900px; margin-bottom: 20px; }
         .card { background: #1e293b; padding: 20px; border-radius: 16px; border-top: 4px solid #38bdf8; text-align: center; box-shadow: 0 10px 15px rgba(0,0,0,0.5); }
-        .label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; display: block; }
-        .value { font-size: 2.5rem; font-weight: bold; color: #ffffff; }
-        .unit { font-size: 0.9rem; color: #64748b; margin-left: 5px; }
+        .label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px; display: block; }
+        .value { font-size: 2.2rem; font-weight: bold; color: #ffffff; }
+        .unit { font-size: 0.8rem; color: #64748b; margin-left: 3px; }
 
-        /* Styl dla kontenera wykresu */
-        .chart-container { width: 95%; max-width: 900px; background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); overflow: hidden; border-top: 4px solid #f472b6; }
-        .chart-container iframe { width: 100%; height: 350px; border: none; border-radius: 8px; }
+        .chart-container { width: 95%; max-width: 900px; background: #1e293b; border-radius: 16px; padding: 20px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); border-top: 4px solid #f472b6; box-sizing: border-box; }
+        canvas { width: 100% !important; height: 300px !important; }
 
-        #status { margin-top: 25px; font-size: 0.8rem; color: #475569; background: #1e293b; padding: 8px 18px; border-radius: 20px; border: 1px solid #334155; }
-        #timestamp { color: #38bdf8; font-weight: bold; }
+        #status { margin-top: 25px; font-size: 0.75rem; color: #475569; background: #1e293b; padding: 8px 15px; border-radius: 20px; }
+        #timestamp { color: #38bdf8; }
     </style>
 </head>
 <body>
 
-    <h1>Garaż: Status Live</h1>
+    <h1>Garaż: Status Systemu</h1>
     
     <div class="grid">
         <div class="card">
@@ -42,41 +42,25 @@
     </div>
 
     <div class="chart-container">
-        <span class="label" style="margin-bottom: 15px; color: #f472b6;">Historia Jakości Sygnału (SNR)</span>
-        <iframe src="https://io.adafruit.com/S_K_/charts/snr?hours=24&background_color=1e293b&line_color=f472b6&label_color=94a3b8&grid_color=334155"></iframe>
+        <span class="label" style="color: #f472b6; margin-bottom: 15px;">Historia Jakości Sygnału (SNR)</span>
+        <canvas id="snrChart"></canvas>
     </div>
 
-    <div id="status">
-        Ostatnia aktualizacja: <span id="timestamp">Ładowanie...</span>
-    </div>
+    <div id="status">Aktualizacja: <span id="timestamp">Ładowanie...</span></div>
 
     <script>
         const USER = "S_K_";
+        let snrChart;
 
-        async function updateDashboard() {
-            const url = `https://io.adafruit.com/api/v2/${USER}/groups/default/feeds?cb=${Date.now()}`;
-
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error();
-
-                const data = await response.json();
-                
-                data.forEach(feed => {
-                    const element = document.getElementById(feed.key);
-                    if (element && feed.last_value !== null) {
-                        element.innerText = feed.last_value;
-                    }
-                });
-
-                document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
-            } catch (e) {
-                console.log("Błąd odświeżania danych.");
-            }
-        }
-
-        setInterval(updateDashboard, 15000);
-        updateDashboard();
-    </script>
-</body>
-</html>
+        // Inicjalizacja wykresu
+        function initChart() {
+            const ctx = document.getElementById('snrChart').getContext('2d');
+            snrChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'SNR (dB)',
+                        data: [],
+                        borderColor: '#f472b6',
+                        backgroundColor: 'rgba(244, 114,

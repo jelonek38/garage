@@ -3,31 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Garaż: Dashboard LoRa</title>
+    <title>Garaż: Inteligentny Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; padding: 10px; min-height: 100vh; margin: 0; }
-        h1 { color: #38bdf8; margin: 20px 0; text-transform: uppercase; font-size: 1.2rem; letter-spacing: 1px; }
+        h1 { color: #38bdf8; margin: 20px 0; text-transform: uppercase; font-size: 1.2rem; }
         
-        /* Karty z aktualnymi wynikami - poziomo na górze */
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 1000px; margin-bottom: 20px; }
-        .card { background: #1e293b; padding: 15px 5px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .card { background: #1e293b; padding: 15px 5px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; }
         .label { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px; display: block; }
         .value { font-size: 1.6rem; font-weight: bold; color: #ffffff; }
-        .unit { font-size: 0.7rem; color: #64748b; margin-left: 2px; }
 
-        /* Wykresy - jeden pod drugim, szerokie */
         .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px; }
-        .chart-container { background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); box-sizing: border-box; width: 100%; }
+        .chart-container { background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); position: relative; cursor: crosshair; }
         .snr-border { border-left: 5px solid #f472b6; }
         .rssi-border { border-left: 5px solid #38bdf8; }
         
-        .chart-title { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 10px; display: block; font-weight: bold; }
-        
-        canvas { width: 100% !important; height: 280px !important; }
+        .chart-info { font-size: 0.7rem; color: #475569; margin-bottom: 10px; display: block; }
+        canvas { width: 100% !important; height: 300px !important; }
 
         #status { margin: 25px 0; font-size: 0.7rem; color: #475569; background: #1e293b; padding: 6px 15px; border-radius: 15px; }
-        #timestamp { color: #38bdf8; font-weight: bold; }
+        .hint { font-size: 0.6rem; color: #64748b; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -37,11 +34,11 @@
     <div class="grid">
         <div class="card">
             <span class="label">Moc (RSSI)</span>
-            <span id="rssi_val" class="value">--</span><span class="unit">dBm</span>
+            <span id="rssi_val" class="value">--</span>
         </div>
         <div class="card">
             <span class="label">Jakość (SNR)</span>
-            <span id="snr_val" class="value">--</span><span class="unit">dB</span>
+            <span id="snr_val" class="value">--</span>
         </div>
         <div class="card">
             <span class="label">Pakiet</span>
@@ -50,49 +47,53 @@
     </div>
 
     <div class="charts-stack">
-        <div class="chart-container snr-border">
-            <span class="chart-title" style="color: #f472b6;">Historia Jakości SNR</span>
+        <div class="chart-container snr-border" onclick="resetZoom('snrChart')">
+            <span class="chart-info">HISTORIA SNR (Użyj kółka myszy aby powiększyć)</span>
             <canvas id="snrChart"></canvas>
         </div>
 
-        <div class="chart-container rssi-border">
-            <span class="chart-title" style="color: #38bdf8;">Historia Mocy RSSI</span>
+        <div class="chart-container rssi-border" onclick="resetZoom('rssiChart')">
+            <span class="chart-info">HISTORIA RSSI (Przesuwaj aby przeglądać)</span>
             <canvas id="rssiChart"></canvas>
         </div>
     </div>
 
-    <div id="status">Ostatnia próba: <span id="timestamp">Ładowanie...</span></div>
+    <div id="status">Status: <span id="timestamp">Ładowanie...</span></div>
+    <div class="hint">Kliknij w wykres, aby zresetować powiększenie.</div>
 
     <script>
         const USER = "S_K_";
-        let snrChart, rssiChart;
+        const DATA_LIMIT = 100; // Zwiększyłem do 100 punktów, żeby było co powiększać
+        let charts = {};
 
         function createChart(id, color, bgColor) {
             const ctx = document.getElementById(id).getContext('2d');
-            return new Chart(ctx, {
+            charts[id] = new Chart(ctx, {
                 type: 'line',
-                data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: bgColor, borderWidth: 2, fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: color }] },
+                data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: bgColor, borderWidth: 2, fill: true, tension: 0.3, pointRadius: 2 }] },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { 
-                            grid: { display: false },
-                            ticks: { color: '#475569', font: { size: 9 }, maxRotation: 0 }
-                        },
-                        y: { 
-                            grid: { color: '#334155' }, 
-                            ticks: { color: '#94a3b8', font: { size: 10 } } 
+                    plugins: {
+                        legend: { display: false },
+                        zoom: {
+                            pan: { enabled: true, mode: 'x' },
+                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
                         }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#475569', font: { size: 9 } } },
+                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
                     }
                 }
             });
         }
 
+        function resetZoom(id) { charts[id].resetZoom(); }
+
         async function updateDashboard() {
             try {
-                // 1. Aktualne liczby
+                // 1. Aktualne dane
                 const resGroup = await fetch(`https://io.adafruit.com/api/v2/${USER}/groups/default/feeds?cb=${Date.now()}`);
                 const groupData = await resGroup.json();
                 groupData.forEach(feed => {
@@ -100,34 +101,27 @@
                     if (el && feed.last_value !== null) el.innerText = feed.last_value;
                 });
 
-                // 2. Historia (zwiększona do 40 punktów dla lepszej czytelności na szerokim ekranie)
-                const fetchHistory = async (key) => {
-                    const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=40`);
-                    return await res.json();
+                // 2. Historia dla wykresów
+                const updateHistory = async (key, chartId) => {
+                    const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=${DATA_LIMIT}`);
+                    const history = await res.json();
+                    charts[chartId].data.labels = history.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
+                    charts[chartId].data.datasets[0].data = history.map(d => d.value).reverse();
+                    charts[chartId].update('none'); // Update bez animacji, żeby nie psuć zoomu
                 };
 
-                const snrHistory = await fetchHistory('snr');
-                snrChart.data.labels = snrHistory.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
-                snrChart.data.datasets[0].data = snrHistory.map(d => d.value).reverse();
-                snrChart.update();
-
-                const rssiHistory = await fetchHistory('rssi');
-                rssiChart.data.labels = rssiHistory.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
-                rssiChart.data.datasets[0].data = rssiHistory.map(d => d.value).reverse();
-                rssiChart.update();
+                await updateHistory('snr', 'snrChart');
+                await updateHistory('rssi', 'rssiChart');
 
                 document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
-            } catch (e) {
-                console.error("Błąd:", e);
-                document.getElementById('timestamp').innerText = "Błąd synchronizacji";
-            }
+            } catch (e) { console.error(e); }
         }
 
-        snrChart = createChart('snrChart', '#f472b6', 'rgba(244, 114, 182, 0.1)');
-        rssiChart = createChart('rssiChart', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
+        createChart('snrChart', '#f472b6', 'rgba(244, 114, 182, 0.1)');
+        createChart('rssiChart', '#38bdf8', 'rgba(56, 189, 248, 0.1)');
 
         updateDashboard();
-        setInterval(updateDashboard, 20000);
+        setInterval(updateDashboard, 30000);
     </script>
 </body>
 </html>

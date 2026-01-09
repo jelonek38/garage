@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Monitor LoRa: HSTS016L</title>
+    <title>Monitor Ładowania</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
     <style>
@@ -22,62 +22,10 @@
         .controls-row { display: flex; justify-content: center; gap: 8px; margin-top: 15px; }
         .btn-nav { background: #334155; color: #f8fafc; border: none; padding: 12px; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: bold; min-width: 75px; text-transform: uppercase; border-bottom: 3px solid rgba(0,0,0,0.2); }
         .btn-nav:hover { background: #38bdf8; color: #0f172a; }
+        .btn-nav:active { transform: translateY(2px); border-bottom: none; }
         
         .btn-zoom { background: #0369a1; }
         .btn-reset-top { position: absolute; top: 10px; right: 10px; background: rgba(71, 85, 105, 0.7); padding: 5px 10px; font-size: 0.6rem; border-radius: 4px; border: none; color: white; cursor: pointer; z-index: 10; }
 
         #status { margin-top: 25px; font-size: 0.7rem; color: #475569; }
-        #timestamp { color: #38bdf8; font-weight: bold; }
-    </style>
-</head>
-<body>
-
-    <h1>MONITOR ŁADOWANIA: 433 MHz</h1>
-    
-    <div class="grid">
-        <div class="card"><span class="label">PRĄD (A)</span><span id="car_current_val" class="value">--</span></div>
-        <div class="card"><span class="label">MOC (RSSI)</span><span id="rssi_val" class="value">--</span></div>
-        <div class="card"><span class="label">JAKOŚĆ (SNR)</span><span id="snr_val" class="value">--</span></div>
-    </div>
-
-    <div class="charts-stack">
-        <div class="chart-wrapper" style="border-left: 5px solid #10b981;">
-            <button class="btn-reset-top" onclick="resetZoom('ampChart', -60, 60)">RESET</button>
-            <div class="chart-container"><canvas id="ampChart"></canvas></div>
-            <div class="controls-row">
-                <button class="btn-nav" onclick="moveX('ampChart', 150)">◀ LEWO</button>
-                <button class="btn-nav" onclick="moveX('ampChart', -150)">PRAWO ▶</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 0.6)">ZOOM +</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 1.4)">ZOOM -</button>
-            </div>
-        </div>
-
-        <div class="chart-wrapper" style="border-left: 5px solid #38bdf8;">
-            <button class="btn-reset-top" onclick="resetZoom('rssiChart', -140, -40)">RESET</button>
-            <div class="chart-container"><canvas id="rssiChart"></canvas></div>
-            <div class="controls-row">
-                <button class="btn-nav" onclick="moveX('rssiChart', 150)">◀ LEWO</button>
-                <button class="btn-nav" onclick="moveX('rssiChart', -150)">PRAWO ▶</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 0.6)">ZOOM +</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 1.4)">ZOOM -</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="status">STATUS: <span id="timestamp">ŁADOWANIE...</span></div>
-
-    <script>
-        const USER = "S_K_";
-        const KEY = "TWÓJ_KLUCZ_AIO"; // Opcjonalnie, jeśli Feedy są prywatne
-        let charts = {};
-
-        function createChart(id, label, color, bgColor, minY, maxY) {
-            const ctx = document.getElementById(id).getContext('2d');
-            charts[id] = new Chart(ctx, {
-                type: 'line',
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: bgColor, borderWidth: 2, fill: true, tension: 0.3, pointRadius: 1 }] },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 400 },
-                    plugins: { legend: { display: false }, zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, mode: 'x' } } },
+        #timestamp { color: #

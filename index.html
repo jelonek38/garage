@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Monitor Ładowania: ADS1115</title>
+    <title>Monitor LoRa: Full Diag</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
     <style>
@@ -13,32 +13,33 @@
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 1000px; margin-bottom: 20px; }
         .card { background: #1e293b; padding: 15px 5px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         .label { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; display: block; }
-        .value { font-size: 1.6rem; font-weight: bold; color: #ffffff; }
+        .value { font-size: 1.4rem; font-weight: bold; color: #ffffff; }
+        .unit { font-size: 0.8rem; color: #38bdf8; margin-left: 2px; }
 
         .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px; }
         .chart-wrapper { background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); position: relative; }
-        .chart-container { position: relative; height: 320px; width: 100%; }
+        .chart-container { position: relative; height: 280px; width: 100%; }
 
         .controls-row { display: flex; justify-content: center; gap: 8px; margin-top: 15px; }
-        .btn-nav { background: #334155; color: #f8fafc; border: none; padding: 12px; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: bold; min-width: 75px; text-transform: uppercase; border-bottom: 3px solid rgba(0,0,0,0.2); }
+        .btn-nav { background: #334155; color: #f8fafc; border: none; padding: 10px; border-radius: 8px; font-size: 0.65rem; cursor: pointer; font-weight: bold; min-width: 70px; text-transform: uppercase; border-bottom: 3px solid rgba(0,0,0,0.2); }
         .btn-nav:hover { background: #38bdf8; color: #0f172a; }
         .btn-nav:active { transform: translateY(2px); border-bottom: none; }
         
         .btn-zoom { background: #0369a1; }
         .btn-reset-top { position: absolute; top: 10px; right: 10px; background: rgba(71, 85, 105, 0.7); padding: 5px 10px; font-size: 0.6rem; border-radius: 4px; border: none; color: white; cursor: pointer; z-index: 10; }
 
-        #status { margin-top: 25px; font-size: 0.7rem; color: #475569; }
+        #status { margin-top: 25px; font-size: 0.7rem; color: #475569; padding-bottom: 20px; }
         #timestamp { color: #38bdf8; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>MONITOR ŁADOWANIA: LORA ADS</h1>
+    <h1>MONITOR SYSTEMU: 433 MHz</h1>
     
     <div class="grid">
-        <div class="card"><span class="label">PRĄD (A)</span><span id="ads_val" class="value">--</span></div>
-        <div class="card"><span class="label">MOC (RSSI)</span><span id="rssi_val" class="value">--</span></div>
-        <div class="card"><span class="label">JAKOŚĆ (SNR)</span><span id="snr_val" class="value">--</span></div>
+        <div class="card"><span class="label">Prąd</span><span id="ads_val" class="value">--</span><span class="unit">A</span></div>
+        <div class="card"><span class="label">Moc (RSSI)</span><span id="rssi_val" class="value">--</span><span class="unit">dBm</span></div>
+        <div class="card"><span class="label">Jakość (SNR)</span><span id="snr_val" class="value">--</span><span class="unit">dB</span></div>
     </div>
 
     <div class="charts-stack">
@@ -63,6 +64,17 @@
                 <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 1.4)">ZOOM -</button>
             </div>
         </div>
+
+        <div class="chart-wrapper" style="border-left: 5px solid #f472b6;">
+            <button class="btn-reset-top" onclick="resetZoom('snrChart', -20, 15)">RESET</button>
+            <div class="chart-container"><canvas id="snrChart"></canvas></div>
+            <div class="controls-row">
+                <button class="btn-nav" onclick="moveX('snrChart', 150)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('snrChart', -150)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 0.6)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 1.4)">ZOOM -</button>
+            </div>
+        </div>
     </div>
 
     <div id="status">STATUS: <span id="timestamp">ŁADOWANIE...</span></div>
@@ -71,7 +83,7 @@
         const USER = "S_K_";
         let charts = {};
 
-        function createChart(id, label, color, bgColor, minY, maxY) {
+        function createChart(id, label, color, bgColor, minY, maxY, unit) {
             const ctx = document.getElementById(id).getContext('2d');
             charts[id] = new Chart(ctx, {
                 type: 'line',
@@ -81,12 +93,13 @@
                     maintainAspectRatio: false,
                     animation: { duration: 400 },
                     plugins: { 
-                        legend: { display: false }, 
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: (ctx) => `${ctx.raw} ${unit}` } },
                         zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, mode: 'x' } } 
                     },
                     scales: {
                         x: { ticks: { color: '#475569', font: { size: 9 } }, grid: { display: false } },
-                        y: { min: minY, max: maxY, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+                        y: { min: minY, max: maxY, ticks: { color: '#94a3b8' }, grid: { color: '#334155' }, title: { display: true, text: unit, color: '#475569' } }
                     }
                 }
             });
@@ -114,11 +127,10 @@
         }
 
         async function updateDashboard() {
-            // Zmieniono 'car_current' na 'ads' zgodnie z Twoim nowym feedem
             const feeds = [
                 { key: 'ads', chart: 'ampChart', valId: 'ads_val' },
                 { key: 'rssi', chart: 'rssiChart', valId: 'rssi_val' },
-                { key: 'snr', chart: null, valId: 'snr_val' }
+                { key: 'snr', chart: 'snrChart', valId: 'snr_val' }
             ];
 
             for (const feed of feeds) {
@@ -143,10 +155,11 @@
             document.getElementById('timestamp').innerText = "ODŚWIEŻONO: " + new Date().toLocaleTimeString();
         }
 
-        createChart('ampChart', 'Prąd (A)', '#10b981', 'rgba(16, 185, 129, 0.1)', -60, 60);
-        createChart('rssiChart', 'Moc (RSSI)', '#38bdf8', 'rgba(56, 189, 248, 0.1)', -140, -40);
+        createChart('ampChart', 'Prąd', '#10b981', 'rgba(16, 185, 129, 0.1)', -60, 60, 'A');
+        createChart('rssiChart', 'Moc', '#38bdf8', 'rgba(56, 189, 248, 0.1)', -140, -40, 'dBm');
+        createChart('snrChart', 'Jakość', '#f472b6', 'rgba(244, 114, 182, 0.1)', -20, 15, 'dB');
 
-        setInterval(updateDashboard, 3000); // Odświeżanie co 3 sekundy
+        setInterval(updateDashboard, 3000);
         updateDashboard();
     </script>
 </body>

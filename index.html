@@ -26,14 +26,16 @@
         .chart-container { position: relative; height: 280px; width: 100%; }
 
         .controls-row { display: flex; justify-content: center; gap: 8px; margin-top: 15px; }
-        .btn-nav { background: #334155; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 0.7rem; cursor: pointer; font-weight: bold; min-width: 70px; }
+        .btn-nav { background: #334155; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 0.7rem; cursor: pointer; font-weight: bold; min-width: 70px; border-bottom: 3px solid rgba(0,0,0,0.2); }
         .btn-zoom { background: #0369a1; }
+        .btn-nav:active { transform: translateY(2px); border-bottom: none; }
         
-        .btn-reset-top { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.1); padding: 5px 10px; font-size: 0.6rem; border-radius: 4px; border: none; color: white; cursor: pointer; z-index: 10; }
+        .btn-reset-top { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.1); padding: 5px 10px; font-size: 0.6rem; border-radius: 4px; border: none; color: white; cursor: pointer; z-index: 10; font-weight: bold; }
 
-        #status { margin-top: 25px; font-size: 0.8rem; color: #64748b; text-align: center; width: 100%; }
+        #status-container { margin-top: 25px; font-size: 0.8rem; text-align: center; width: 100%; padding-bottom: 20px; }
+        #status-text { color: #94a3b8; }
         #timestamp { color: #38bdf8; font-weight: bold; }
-        #debug-info { color: #ef4444; font-size: 0.7rem; margin-top: 10px; display: block; }
+        #error-msg { color: #ef4444; font-size: 0.7rem; display: block; margin-top: 5px; font-family: monospace; }
     </style>
 </head>
 <body>
@@ -52,10 +54,10 @@
             <button class="btn-reset-top" onclick="resetZoom('ampChart', -60, 60)">RESET</button>
             <div class="chart-container"><canvas id="ampChart"></canvas></div>
             <div class="controls-row">
-                <button class="btn-nav" onclick="moveX('ampChart', 100)">◀</button>
-                <button class="btn-nav" onclick="moveX('ampChart', -100)">▶</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 0.5)">+</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 2.0)">-</button>
+                <button class="btn-nav" onclick="moveX('ampChart', 100)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('ampChart', -100)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 0.5)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 2.0)">ZOOM -</button>
             </div>
         </div>
 
@@ -64,10 +66,10 @@
             <button class="btn-reset-top" onclick="resetZoom('rssiChart', -140, -40)">RESET</button>
             <div class="chart-container"><canvas id="rssiChart"></canvas></div>
             <div class="controls-row">
-                <button class="btn-nav" onclick="moveX('rssiChart', 100)">◀</button>
-                <button class="btn-nav" onclick="moveX('rssiChart', -100)">▶</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 0.5)">+</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 2.0)">-</button>
+                <button class="btn-nav" onclick="moveX('rssiChart', 100)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('rssiChart', -100)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 0.5)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 2.0)">ZOOM -</button>
             </div>
         </div>
 
@@ -76,22 +78,24 @@
             <button class="btn-reset-top" onclick="resetZoom('snrChart', -20, 15)">RESET</button>
             <div class="chart-container"><canvas id="snrChart"></canvas></div>
             <div class="controls-row">
-                <button class="btn-nav" onclick="moveX('snrChart', 100)">◀</button>
-                <button class="btn-nav" onclick="moveX('snrChart', -100)">▶</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 0.5)">+</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 2.0)">-</button>
+                <button class="btn-nav" onclick="moveX('snrChart', 100)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('snrChart', -100)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 0.5)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 2.0)">ZOOM -</button>
             </div>
         </div>
     </div>
 
-    <div id="status">
-        STATUS: <span id="timestamp">ŁĄCZENIE...</span>
-        <span id="debug-info"></span>
+    <div id="status-container">
+        <span id="status-text">STATUS: <span id="timestamp">INICJALIZACJA...</span></span>
+        <span id="error-msg"></span>
     </div>
 
     <script>
+        // === KONFIGURACJA UŻYTKOWNIKA ===
         const USER = "S_K_";
-        const AIO_KEY = ""; // Wpisz swój klucz jeśli feedy są prywatne
+        const AIO_KEY = ""; // WPISZ KLUCZ JEŚLI DALEJ NIE POBIERA
+        // ===============================
 
         const charts = {};
 
@@ -103,9 +107,10 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: { duration: 400 },
                     plugins: { 
                         legend: { display: false }, 
-                        tooltip: { callbacks: { label: (ctx) => ` ${ctx.raw} ${unit}` } },
+                        tooltip: { backgroundColor: '#1e293b', titleColor: '#38bdf8', bodyColor: '#ffffff', callbacks: { label: (ctx) => ` ${ctx.raw} ${unit}` } },
                         zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, mode: 'x' } } 
                     },
                     scales: {
@@ -123,7 +128,6 @@
             const data = chart.data.datasets[0].data;
             if (!data || data.length === 0) return;
 
-            // Znajdź średnią z dostępnych punktów, aby wycentrować widok
             const numValues = data.map(Number);
             const sum = numValues.reduce((a, b) => a + b, 0);
             const avg = sum / numValues.length;
@@ -132,10 +136,8 @@
             const currentRange = scale.max - scale.min;
             const newRange = currentRange * factor;
 
-            // Ustaw nowe granice osi Y tak, aby średnia była dokładnie na środku
             scale.min = avg - (newRange / 2);
             scale.max = avg + (newRange / 2);
-            
             chart.update();
         }
 
@@ -150,14 +152,58 @@
 
         async function updateData() {
             const config = [
-                { k: 'ads', c: 'ampChart', v: 'ads_val', u: 'A' },
-                { k: 'rssi', c: 'rssiChart', v: 'rssi_val', u: 'dBm' },
-                { k: 'snr', c: 'snrChart', v: 'snr_val', u: 'dB' }
+                { k: 'ads', c: 'ampChart', v: 'ads_val' },
+                { k: 'rssi', c: 'rssiChart', v: 'rssi_val' },
+                { k: 'snr', c: 'snrChart', v: 'snr_val' }
             ];
 
-            let errorOccurred = false;
+            let hasErrors = false;
+            let errorText = "";
 
             for (const item of config) {
                 try {
-                    const headers = {};
-                    if (AIO
+                    const headers = AIO_KEY ? { 'X-AIO-Key': AIO_KEY } : {};
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4000); // Timeout po 4s
+
+                    const r = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${item.k}/data?limit=40`, { 
+                        headers,
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+
+                    if (!r.ok) {
+                        hasErrors = true;
+                        errorText = `Błąd API ${r.status}: Sprawdź klucz lub czy feedy są Public`;
+                        continue;
+                    }
+
+                    const data = await r.json();
+                    if (data && data.length > 0) {
+                        document.getElementById(item.v).innerText = data[0].value;
+                        const chart = charts[item.c];
+                        chart.data.labels = data.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
+                        chart.data.datasets[0].data = data.map(d => d.value).reverse();
+                        chart.update('none');
+                    }
+                } catch (e) { 
+                    hasErrors = true;
+                    errorText = "Błąd połączenia: " + e.message;
+                }
+            }
+
+            document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
+            document.getElementById('error-msg').innerText = hasErrors ? errorText : "";
+        }
+
+        // Start
+        createChart('ampChart', '#10b981', -60, 60, 'A');
+        createChart('rssiChart', '#38bdf8', -140, -40, 'dBm');
+        createChart('snrChart', '#f472b6', -20, 15, 'dB');
+
+        updateData();
+        setInterval(updateData, 5000); // Odświeżanie co 5 sekund
+    </script>
+</body>
+</html>

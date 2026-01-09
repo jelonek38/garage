@@ -18,10 +18,14 @@
 
         .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 900px; }
         .chart-wrapper { background: #1e293b; border-radius: 16px; padding: 15px; position: relative; border-left: 5px solid #334155; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        
+        .chart-header { margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+        .chart-title { font-size: 0.85rem; font-weight: bold; text-transform: uppercase; color: #ffffff; }
+
         .chart-container { position: relative; height: 250px; width: 100%; }
 
-        .controls-row { display: flex; justify: center; gap: 8px; margin-top: 15px; }
-        .btn-nav { background: #334155; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 0.7rem; cursor: pointer; font-weight: bold; min-width: 80px; border-bottom: 3px solid rgba(0,0,0,0.3); transition: all 0.1s; }
+        .controls-row { display: flex; justify-content: center; gap: 8px; margin-top: 15px; }
+        .btn-nav { background: #334155; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 0.7rem; cursor: pointer; font-weight: bold; min-width: 80px; border-bottom: 3px solid rgba(0,0,0,0.3); }
         .btn-zoom { background: #0369a1; }
         .btn-nav:active { transform: translateY(2px); border-bottom: none; }
         
@@ -43,6 +47,7 @@
 
     <div class="charts-stack">
         <div class="chart-wrapper" style="border-left-color: #10b981;">
+            <div class="chart-header"><span class="chart-title">Natężenie Prądu [A]</span></div>
             <button class="btn-reset-top" onclick="resetZoom('ampChart', -60, 60)">RESET</button>
             <div class="chart-container"><canvas id="ampChart"></canvas></div>
             <div class="controls-row">
@@ -54,6 +59,7 @@
         </div>
 
         <div class="chart-wrapper" style="border-left-color: #38bdf8;">
+            <div class="chart-header"><span class="chart-title">Poziom Sygnału [dBm]</span></div>
             <button class="btn-reset-top" onclick="resetZoom('rssiChart', -140, -40)">RESET</button>
             <div class="chart-container"><canvas id="rssiChart"></canvas></div>
             <div class="controls-row">
@@ -65,6 +71,7 @@
         </div>
 
         <div class="chart-wrapper" style="border-left-color: #f472b6;">
+            <div class="chart-header"><span class="chart-title">SNR [dB]</span></div>
             <button class="btn-reset-top" onclick="resetZoom('snrChart', -20, 15)">RESET</button>
             <div class="chart-container"><canvas id="snrChart"></canvas></div>
             <div class="controls-row">
@@ -77,7 +84,7 @@
     </div>
 
     <div id="status-container">
-        STATUS: <span id="timestamp">ŁĄCZENIE...</span>
+        STATUS: <span id="timestamp">ŁADOWANIE...</span>
     </div>
 
     <script>
@@ -85,23 +92,22 @@
         const AIO_KEY = ""; 
         const charts = {};
 
-        function createChart(id, color, minY, maxY) {
+        function createChart(id, label, color, minY, maxY, unit) {
             const ctx = document.getElementById(id).getContext('2d');
             charts[id] = new Chart(ctx, {
                 type: 'line',
-                data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1.5, fill: true, tension: 0.1, pointRadius: 0 }] },
+                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 2, fill: true, tension: 0.2, pointRadius: 0 }] },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    parsing: false,
-                    normalized: true,
                     plugins: { 
-                        legend: { display: false }, 
+                        legend: { display: false },
+                        tooltip: { mode: 'index', intersect: false, callbacks: { label: (ctx) => ` ${ctx.raw} ${unit}` } },
                         zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, mode: 'x' } } 
                     },
                     scales: {
-                        x: { ticks: { color: '#94a3b8', font: { size: 9 }, maxRotation: 0 }, grid: { display: false } },
-                        y: { min: minY, max: maxY, ticks: { color: '#ffffff', font: { weight: 'bold', size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                        x: { ticks: { color: '#94a3b8', font: { size: 9 }, maxTicksLimit: 10 }, grid: { display: false } },
+                        y: { min: minY, max: maxY, ticks: { color: '#ffffff', font: { weight: 'bold' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
                     }
                 }
             });
@@ -113,11 +119,11 @@
             const chart = charts[id];
             const data = chart.data.datasets[0].data;
             if (!data.length) return;
-            const avg = data.reduce((a, b) => a + b.y, 0) / data.length;
+            const avg = data.reduce((a, b) => a + b, 0) / data.length;
             const scale = chart.options.scales.y;
-            const newRange = (scale.max - scale.min) * factor;
-            scale.min = avg - (newRange / 2);
-            scale.max = avg + (newRange / 2);
+            const range = (scale.max - scale.min) * factor;
+            scale.min = avg - (range / 2);
+            scale.max = avg + (range / 2);
             chart.update();
         }
 
@@ -131,8 +137,12 @@
         }
 
         async function updateData() {
-            const config = [{k:'ads', c:'ampChart', v:'ads_val'}, {k:'rssi', c:'rssiChart', v:'rssi_val'}, {k:'snr', c:'snrChart', v:'snr_val'}];
-            for (const f of config) {
+            const feeds = [
+                {k:'ads', c:'ampChart', v:'ads_val', u:'A'}, 
+                {k:'rssi', c:'rssiChart', v:'rssi_val', u:'dBm'}, 
+                {k:'snr', c:'snrChart', v:'snr_val', u:'dB'}
+            ];
+            for (const f of feeds) {
                 try {
                     const h = AIO_KEY ? { 'X-AIO-Key': AIO_KEY } : {};
                     const r = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${f.k}/data?limit=1000`, { headers: h });
@@ -141,11 +151,8 @@
                     if (data.length > 0) {
                         document.getElementById(f.v).innerText = data[0].value;
                         const chart = charts[f.c];
-                        chart.data.datasets[0].data = data.map(d => ({
-                            x: new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                            y: parseFloat(d.value)
-                        })).reverse();
-                        chart.data.labels = chart.data.datasets[0].data.map(d => d.x);
+                        chart.data.labels = data.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
+                        chart.data.datasets[0].data = data.map(d => parseFloat(d.value)).reverse();
                         chart.update('none');
                     }
                 } catch (e) { console.error(e); }
@@ -153,12 +160,11 @@
             document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
         }
 
-        createChart('ampChart', '#10b981', -60, 60);
-        createChart('rssiChart', '#38bdf8', -140, -40);
-        createChart('snrChart', '#f472b6', -20, 15);
+        createChart('ampChart', 'Prąd', '#10b981', -60, 60, 'A');
+        createChart('rssiChart', 'Moc', '#38bdf8', -140, -40, 'dBm');
+        createChart('snrChart', 'SNR', '#f472b6', -20, 15, 'dB');
 
         updateData();
-        // Odświeżanie ustawione na 3 sekundy (3000 ms)
         setInterval(updateData, 3000);
     </script>
 </body>

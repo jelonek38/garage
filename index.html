@@ -3,45 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Monitor LoRa: HSTS016L</title>
+    <title>Monitor LoRa</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; padding: 10px; min-height: 100vh; margin: 0; }
-        h1 { color: #38bdf8; margin: 15px 0; text-transform: uppercase; font-size: 1.1rem; letter-spacing: 1px; }
+        h1 { color: #38bdf8; margin: 15px 0; text-transform: uppercase; font-size: 1.2rem; letter-spacing: 1px; text-align: center; }
         
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 1000px; margin-bottom: 20px; }
         .card { background: #1e293b; padding: 15px 5px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .label { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; display: block; }
+        .label { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 4px; }
         .value { font-size: 1.6rem; font-weight: bold; color: #ffffff; }
+        .unit { font-size: 0.9rem; color: #38bdf8; margin-left: 3px; text-transform: none; }
 
         .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px; }
-        .chart-wrapper { background: #1e293b; border-radius: 16px; padding: 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); position: relative; }
-        .chart-container { position: relative; height: 320px; width: 100%; }
-
-        .controls-row { display: flex; justify-content: center; gap: 8px; margin-top: 15px; }
-        .btn-nav { background: #334155; color: #f8fafc; border: none; padding: 12px; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: bold; min-width: 75px; text-transform: uppercase; border-bottom: 3px solid rgba(0,0,0,0.2); }
-        .btn-nav:hover { background: #38bdf8; color: #0f172a; }
+        .chart-wrapper { background: #1e293b; border-radius: 16px; padding: 20px 15px 15px 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); position: relative; }
         
-        .btn-zoom { background: #0369a1; }
-        .btn-reset-top { position: absolute; top: 10px; right: 10px; background: rgba(71, 85, 105, 0.7); padding: 5px 10px; font-size: 0.6rem; border-radius: 4px; border: none; color: white; cursor: pointer; z-index: 10; }
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 5px; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+        .chart-title { font-size: 0.9rem; font-weight: bold; text-transform: uppercase; color: #ffffff; letter-spacing: 0.5px; }
+        .chart-title-unit { color: #38bdf8; font-size: 0.8rem; margin-left: 6px; text-transform: none; }
 
-        #status { margin-top: 25px; font-size: 0.7rem; color: #475569; }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+
+        .controls-row { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
+        .btn-nav { background: #334155; color: #f8fafc; border: none; padding: 12px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; font-weight: bold; min-width: 75px; text-transform: uppercase; border-bottom: 4px solid rgba(0,0,0,0.3); transition: all 0.1s; }
+        .btn-nav:hover { background: #475569; }
+        .btn-nav:active { transform: translateY(2px); border-bottom: none; }
+        .btn-zoom { background: #0369a1; }
+        
+        .btn-reset-top { position: absolute; top: 15px; right: 15px; background: rgba(51, 65, 85, 0.9); padding: 6px 12px; font-size: 0.7rem; border-radius: 4px; border: 1px solid #475569; color: white; cursor: pointer; z-index: 10; font-weight: bold; }
+
+        #status { margin-top: 30px; font-size: 0.8rem; color: #64748b; padding-bottom: 40px; text-align: center; width: 100%; }
         #timestamp { color: #38bdf8; font-weight: bold; }
+        #error-log { color: #ef4444; font-size: 0.7rem; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <h1>MONITOR ŁADOWANIA: 433 MHz</h1>
+    <h1>STACJA MONITORINGU ŁADOWANIA</h1>
     
     <div class="grid">
-        <div class="card"><span class="label">PRĄD (A)</span><span id="car_current_val" class="value">--</span></div>
-        <div class="card"><span class="label">MOC (RSSI)</span><span id="rssi_val" class="value">--</span></div>
-        <div class="card"><span class="label">JAKOŚĆ (SNR)</span><span id="snr_val" class="value">--</span></div>
+        <div class="card"><span class="label">Pobór Prądu</span><span id="ads_val" class="value">--</span><span class="unit">A</span></div>
+        <div class="card"><span class="label">Moc (RSSI)</span><span id="rssi_val" class="value">--</span><span class="unit">dBm</span></div>
+        <div class="card"><span class="label">Signal-to-Noise Ratio</span><span id="snr_val" class="value">--</span><span class="unit">dB</span></div>
     </div>
 
     <div class="charts-stack">
         <div class="chart-wrapper" style="border-left: 5px solid #10b981;">
+            <div class="chart-header"><span class="chart-title">Natężenie Prądu <span class="chart-title-unit">[A]</span></span></div>
             <button class="btn-reset-top" onclick="resetZoom('ampChart', -60, 60)">RESET</button>
             <div class="chart-container"><canvas id="ampChart"></canvas></div>
             <div class="controls-row">
@@ -53,6 +62,7 @@
         </div>
 
         <div class="chart-wrapper" style="border-left: 5px solid #38bdf8;">
+            <div class="chart-header"><span class="chart-title">Poziom Sygnału <span class="chart-title-unit">[dBm]</span></span></div>
             <button class="btn-reset-top" onclick="resetZoom('rssiChart', -140, -40)">RESET</button>
             <div class="chart-container"><canvas id="rssiChart"></canvas></div>
             <div class="controls-row">
@@ -62,88 +72,105 @@
                 <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 1.4)">ZOOM -</button>
             </div>
         </div>
+
+        <div class="chart-wrapper" style="border-left: 5px solid #f472b6;">
+            <div class="chart-header"><span class="chart-title">Signal-to-Noise Ratio <span class="chart-title-unit">[dB]</span></span></div>
+            <button class="btn-reset-top" onclick="resetZoom('snrChart', -20, 15)">RESET</button>
+            <div class="chart-container"><canvas id="snrChart"></canvas></div>
+            <div class="controls-row">
+                <button class="btn-nav" onclick="moveX('snrChart', 150)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('snrChart', -150)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 0.6)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 1.4)">ZOOM -</button>
+            </div>
+        </div>
     </div>
 
-    <div id="status">STATUS: <span id="timestamp">ŁADOWANIE...</span></div>
+    <div id="status">
+        STATUS: <span id="timestamp">INICJALIZACJA...</span>
+        <div id="error-log"></div>
+    </div>
 
     <script>
+        // --- KONFIGURACJA ---
         const USER = "S_K_";
-        const KEY = "TWÓJ_KLUCZ_AIO"; // Opcjonalnie, jeśli Feedy są prywatne
+        const AIO_KEY = "TWÓJ_KLUCZ_AIO"; // WPISZ TUTAJ SWÓJ KLUCZ JEŚLI FEEDY SĄ PRYWATNE
+        
         let charts = {};
 
-        function createChart(id, label, color, bgColor, minY, maxY) {
-            const ctx = document.getElementById(id).getContext('2d');
-            charts[id] = new Chart(ctx, {
-                type: 'line',
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: bgColor, borderWidth: 2, fill: true, tension: 0.3, pointRadius: 1 }] },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 400 },
-                    plugins: { legend: { display: false }, zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, mode: 'x' } } },
-                    scales: {
-                        x: { ticks: { color: '#475569', font: { size: 9 } }, grid: { display: false } },
-                        y: { min: minY, max: maxY, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+        function logError(msg) {
+            document.getElementById('error-log').innerText = "Błąd: " + msg;
+            console.error(msg);
+        }
+
+        function createChart(id, label, color, bgColor, minY, maxY, unit) {
+            try {
+                const ctx = document.getElementById(id).getContext('2d');
+                charts[id] = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: bgColor, borderWidth: 2.5, fill: true, tension: 0.3, pointRadius: 1 }] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { 
+                            legend: { display: false },
+                            zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, mode: 'x' } } 
+                        },
+                        scales: {
+                            x: { ticks: { color: '#ffffff' }, grid: { display: false } },
+                            y: { min: minY, max: maxY, ticks: { color: '#ffffff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                        }
                     }
-                }
-            });
+                });
+            } catch (e) { logError("Inicjalizacja wykresu: " + e.message); }
         }
 
-        function moveX(id, amount) { charts[id].pan({ x: amount }, undefined, 'default'); }
-
-        function smartZoomY(id, factor) {
-            const chart = charts[id];
-            const data = chart.data.datasets[0].data;
-            if (data.length === 0) return;
-            const lastValues = data.slice(-10).map(Number);
-            const average = lastValues.reduce((a, b) => a + b, 0) / lastValues.length;
-            const currentRange = (chart.options.scales.y.max - chart.options.scales.y.min) * factor;
-            chart.options.scales.y.min = average - (currentRange / 2);
-            chart.options.scales.y.max = average + (currentRange / 2);
-            chart.update();
-        }
-
-        function resetZoom(id, min, max) {
-            charts[id].resetZoom();
-            charts[id].options.scales.y.min = min;
-            charts[id].options.scales.y.max = max;
-            charts[id].update();
-        }
+        function moveX(id, amount) { if(charts[id]) charts[id].pan({ x: amount }, undefined, 'default'); }
+        function resetZoom(id, min, max) { if(charts[id]) { charts[id].resetZoom(); charts[id].options.scales.y.min = min; charts[id].options.scales.y.max = max; charts[id].update(); } }
 
         async function updateDashboard() {
             const feeds = [
-                { key: 'car_current', chart: 'ampChart', valId: 'car_current_val' },
-                { key: 'rssi', chart: 'rssiChart', valId: 'rssi_val' },
-                { key: 'snr', chart: null, valId: 'snr_val' }
+                { key: 'ads', chart: 'ampChart', valId: 'ads_val', unit: 'A' },
+                { key: 'rssi', chart: 'rssiChart', valId: 'rssi_val', unit: 'dBm' },
+                { key: 'snr', chart: 'snrChart', valId: 'snr_val', unit: 'dB' }
             ];
 
             for (const feed of feeds) {
                 try {
-                    const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${feed.key}/data?limit=100`);
-                    if (!res.ok) continue;
-                    const data = await res.json();
+                    // Dodano nagłówek X-AIO-Key na wypadek prywatnych feedów
+                    const url = `https://io.adafruit.com/api/v2/${USER}/feeds/${feed.key}/data?limit=100`;
+                    const res = await fetch(url, {
+                        headers: { 'X-AIO-Key': AIO_KEY }
+                    });
                     
-                    if (data.length > 0) {
-                        const lastVal = data[0].value;
-                        document.getElementById(feed.valId).innerText = lastVal;
+                    if (!res.ok) {
+                        if(res.status === 404) throw new Error(`Feed "${feed.key}" nie istnieje.`);
+                        if(res.status === 401) throw new Error("Błędny klucz AIO lub brak uprawnień.");
+                        throw new Error(`Status HTTP: ${res.status}`);
+                    }
 
-                        if (feed.chart) {
+                    const data = await res.json();
+                    if (data.length > 0) {
+                        document.getElementById(feed.valId).innerText = data[0].value;
+                        if (feed.chart && charts[feed.chart]) {
                             const chart = charts[feed.chart];
                             chart.data.labels = data.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
                             chart.data.datasets[0].data = data.map(d => d.value).reverse();
                             chart.update('none');
                         }
                     }
-                } catch (e) { console.error("Błąd feedu:", feed.key, e); }
+                } catch (e) { logError(feed.key + ": " + e.message); }
             }
-            document.getElementById('timestamp').innerText = "AKTUALNY: " + new Date().toLocaleTimeString();
+            document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
         }
 
-        createChart('ampChart', 'Prąd (A)', '#10b981', 'rgba(16, 185, 129, 0.1)', -60, 60);
-        createChart('rssiChart', 'Moc (RSSI)', '#38bdf8', 'rgba(56, 189, 248, 0.1)', -140, -40);
+        // START
+        createChart('ampChart', 'Prąd', '#10b981', 'rgba(16, 185, 129, 0.1)', -60, 60, 'A');
+        createChart('rssiChart', 'Moc', '#38bdf8', 'rgba(56, 189, 248, 0.1)', -140, -40, 'dBm');
+        createChart('snrChart', 'Signal-to-Noise Ratio', '#f472b6', 'rgba(244, 114, 182, 0.1)', -20, 15, 'dB');
 
-        setInterval(updateDashboard, 3000);
         updateDashboard();
+        setInterval(updateDashboard, 5000);
     </script>
 </body>
 </html>

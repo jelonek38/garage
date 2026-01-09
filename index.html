@@ -54,8 +54,8 @@
             <div class="controls-row">
                 <button class="btn-nav" onclick="moveX('ampChart', 100)">◀</button>
                 <button class="btn-nav" onclick="moveX('ampChart', -100)">▶</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 0.7)">+</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 1.3)">-</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 0.5)">+</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 2.0)">-</button>
             </div>
         </div>
 
@@ -66,8 +66,8 @@
             <div class="controls-row">
                 <button class="btn-nav" onclick="moveX('rssiChart', 100)">◀</button>
                 <button class="btn-nav" onclick="moveX('rssiChart', -100)">▶</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 0.7)">+</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 1.3)">-</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 0.5)">+</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 2.0)">-</button>
             </div>
         </div>
 
@@ -78,8 +78,8 @@
             <div class="controls-row">
                 <button class="btn-nav" onclick="moveX('snrChart', 100)">◀</button>
                 <button class="btn-nav" onclick="moveX('snrChart', -100)">▶</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 0.7)">+</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 1.3)">-</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 0.5)">+</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 2.0)">-</button>
             </div>
         </div>
     </div>
@@ -90,10 +90,8 @@
     </div>
 
     <script>
-        // === KONFIGURACJA ===
         const USER = "S_K_";
-        const AIO_KEY = ""; // <--- WPISZ SWÓJ KLUCZ TUTAJ, JEŚLI DALEJ NIE MA DANYCH!
-        // ====================
+        const AIO_KEY = ""; // Wpisz swój klucz jeśli feedy są prywatne
 
         const charts = {};
 
@@ -105,7 +103,11 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, mode: 'x' } } },
+                    plugins: { 
+                        legend: { display: false }, 
+                        tooltip: { callbacks: { label: (ctx) => ` ${ctx.raw} ${unit}` } },
+                        zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, mode: 'x' } } 
+                    },
                     scales: {
                         x: { ticks: { color: '#ffffff', font: { size: 10 } }, grid: { display: false } },
                         y: { min: minY, max: maxY, ticks: { color: '#ffffff', font: { weight: 'bold', size: 12 } }, grid: { color: 'rgba(255,255,255,0.1)' } }
@@ -118,11 +120,22 @@
         
         function smartZoomY(id, factor) {
             const chart = charts[id];
+            const data = chart.data.datasets[0].data;
+            if (!data || data.length === 0) return;
+
+            // Znajdź średnią z dostępnych punktów, aby wycentrować widok
+            const numValues = data.map(Number);
+            const sum = numValues.reduce((a, b) => a + b, 0);
+            const avg = sum / numValues.length;
+
             const scale = chart.options.scales.y;
-            const center = (scale.max + scale.min) / 2;
-            const range = (scale.max - scale.min) * factor;
-            scale.min = center - range/2;
-            scale.max = center + range/2;
+            const currentRange = scale.max - scale.min;
+            const newRange = currentRange * factor;
+
+            // Ustaw nowe granice osi Y tak, aby średnia była dokładnie na środku
+            scale.min = avg - (newRange / 2);
+            scale.max = avg + (newRange / 2);
+            
             chart.update();
         }
 
@@ -137,9 +150,9 @@
 
         async function updateData() {
             const config = [
-                { k: 'ads', c: 'ampChart', v: 'ads_val' },
-                { k: 'rssi', c: 'rssiChart', v: 'rssi_val' },
-                { k: 'snr', c: 'snrChart', v: 'snr_val' }
+                { k: 'ads', c: 'ampChart', v: 'ads_val', u: 'A' },
+                { k: 'rssi', c: 'rssiChart', v: 'rssi_val', u: 'dBm' },
+                { k: 'snr', c: 'snrChart', v: 'snr_val', u: 'dB' }
             ];
 
             let errorOccurred = false;
@@ -147,41 +160,4 @@
             for (const item of config) {
                 try {
                     const headers = {};
-                    if (AIO_KEY) headers['X-AIO-Key'] = AIO_KEY;
-
-                    const r = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${item.k}/data?limit=40`, { headers });
-                    
-                    if (!r.ok) {
-                        errorOccurred = true;
-                        document.getElementById('debug-info').innerText = "Błąd API: " + r.status + " (Sprawdź klucz)";
-                        continue;
-                    }
-
-                    const data = await r.json();
-                    if (data && data.length > 0) {
-                        document.getElementById(item.v).innerText = data[0].value;
-                        const chart = charts[item.c];
-                        chart.data.labels = data.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
-                        chart.data.datasets[0].data = data.map(d => d.value).reverse();
-                        chart.update('none');
-                    }
-                } catch (e) { 
-                    console.log("Błąd pobierania:", item.k);
-                    errorOccurred = true;
-                }
-            }
-            if (!errorOccurred) document.getElementById('debug-info').innerText = "";
-            document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
-        }
-
-        // Tworzenie wykresów przy starcie
-        createChart('ampChart', '#10b981', -60, 60, 'A');
-        createChart('rssiChart', '#38bdf8', -140, -40, 'dBm');
-        createChart('snrChart', '#f472b6', -20, 15, 'dB');
-
-        // Uruchomienie pętli danych
-        updateData();
-        setInterval(updateData, 5000);
-    </script>
-</body>
-</html>
+                    if (AIO

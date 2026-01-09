@@ -37,4 +37,129 @@
     
     <div class="grid">
         <div class="card"><span class="label">Pobór Prądu</span><span id="ads_val" class="value">--</span><span class="unit">A</span></div>
-        <div class="card">
+        <div class="card"><span class="label">Moc (RSSI)</span><span id="rssi_val" class="value">--</span><span class="unit">dBm</span></div>
+        <div class="card"><span class="label">SNR</span><span id="snr_val" class="value">--</span><span class="unit">dB</span></div>
+    </div>
+
+    <div class="charts-stack">
+        <div class="chart-wrapper" style="border-left-color: #10b981;">
+            <button class="btn-reset-top" onclick="resetZoom('ampChart', -60, 60)">RESET</button>
+            <div class="chart-container"><canvas id="ampChart"></canvas></div>
+            <div class="controls-row">
+                <button class="btn-nav" onclick="moveX('ampChart', 150)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('ampChart', -150)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 0.5)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 2.0)">ZOOM -</button>
+            </div>
+        </div>
+
+        <div class="chart-wrapper" style="border-left-color: #38bdf8;">
+            <button class="btn-reset-top" onclick="resetZoom('rssiChart', -140, -40)">RESET</button>
+            <div class="chart-container"><canvas id="rssiChart"></canvas></div>
+            <div class="controls-row">
+                <button class="btn-nav" onclick="moveX('rssiChart', 150)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('rssiChart', -150)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 0.5)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 2.0)">ZOOM -</button>
+            </div>
+        </div>
+
+        <div class="chart-wrapper" style="border-left-color: #f472b6;">
+            <button class="btn-reset-top" onclick="resetZoom('snrChart', -20, 15)">RESET</button>
+            <div class="chart-container"><canvas id="snrChart"></canvas></div>
+            <div class="controls-row">
+                <button class="btn-nav" onclick="moveX('snrChart', 150)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('snrChart', -150)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 0.5)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 2.0)">ZOOM -</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="status-container">
+        STATUS: <span id="timestamp">ŁĄCZENIE...</span>
+    </div>
+
+    <script>
+        const USER = "S_K_";
+        const AIO_KEY = ""; 
+        const charts = {};
+
+        function createChart(id, color, minY, maxY) {
+            const ctx = document.getElementById(id).getContext('2d');
+            charts[id] = new Chart(ctx, {
+                type: 'line',
+                data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1.5, fill: true, tension: 0.1, pointRadius: 0 }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    parsing: false,
+                    normalized: true,
+                    plugins: { 
+                        legend: { display: false }, 
+                        zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, mode: 'x' } } 
+                    },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 9 }, maxRotation: 0 }, grid: { display: false } },
+                        y: { min: minY, max: maxY, ticks: { color: '#ffffff', font: { weight: 'bold', size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+        }
+
+        function moveX(id, amount) { if(charts[id]) charts[id].pan({ x: amount }, undefined, 'default'); }
+        
+        function smartZoomY(id, factor) {
+            const chart = charts[id];
+            const data = chart.data.datasets[0].data;
+            if (!data.length) return;
+            const avg = data.reduce((a, b) => a + b.y, 0) / data.length;
+            const scale = chart.options.scales.y;
+            const newRange = (scale.max - scale.min) * factor;
+            scale.min = avg - (newRange / 2);
+            scale.max = avg + (newRange / 2);
+            chart.update();
+        }
+
+        function resetZoom(id, min, max) {
+            if(charts[id]) { 
+                charts[id].resetZoom(); 
+                charts[id].options.scales.y.min = min; 
+                charts[id].options.scales.y.max = max; 
+                charts[id].update(); 
+            }
+        }
+
+        async function updateData() {
+            const config = [{k:'ads', c:'ampChart', v:'ads_val'}, {k:'rssi', c:'rssiChart', v:'rssi_val'}, {k:'snr', c:'snrChart', v:'snr_val'}];
+            for (const f of config) {
+                try {
+                    const h = AIO_KEY ? { 'X-AIO-Key': AIO_KEY } : {};
+                    const r = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${f.k}/data?limit=1000`, { headers: h });
+                    if (!r.ok) continue;
+                    const data = await r.json();
+                    if (data.length > 0) {
+                        document.getElementById(f.v).innerText = data[0].value;
+                        const chart = charts[f.c];
+                        chart.data.datasets[0].data = data.map(d => ({
+                            x: new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                            y: parseFloat(d.value)
+                        })).reverse();
+                        chart.data.labels = chart.data.datasets[0].data.map(d => d.x);
+                        chart.update('none');
+                    }
+                } catch (e) { console.error(e); }
+            }
+            document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
+        }
+
+        createChart('ampChart', '#10b981', -60, 60);
+        createChart('rssiChart', '#38bdf8', -140, -40);
+        createChart('snrChart', '#f472b6', -20, 15);
+
+        updateData();
+        // Odświeżanie ustawione na 3 sekundy (3000 ms)
+        setInterval(updateData, 3000);
+    </script>
+</body>
+</html>

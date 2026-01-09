@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Monitor LoRa: Korekta Jednostek</title>
+    <title>Monitor LoRa: SNR Update</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
     <style>
@@ -14,7 +14,7 @@
         .card { background: #1e293b; padding: 15px 5px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         .label { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 4px; }
         .value { font-size: 1.6rem; font-weight: bold; color: #ffffff; }
-        .unit { font-size: 0.9rem; color: #38bdf8; margin-left: 3px; }
+        .unit { font-size: 0.9rem; color: #38bdf8; margin-left: 3px; text-transform: none; }
 
         .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1000px; }
         .chart-wrapper { background: #1e293b; border-radius: 16px; padding: 20px 15px 15px 15px; box-shadow: 0 10px 15px rgba(0,0,0,0.5); position: relative; }
@@ -44,7 +44,7 @@
     <div class="grid">
         <div class="card"><span class="label">Pobór Prądu</span><span id="ads_val" class="value">--</span><span class="unit">A</span></div>
         <div class="card"><span class="label">Moc (RSSI)</span><span id="rssi_val" class="value">--</span><span class="unit">dBm</span></div>
-        <div class="card"><span class="label">Jakość (SNR)</span><span id="snr_val" class="value">--</span><span class="unit">dB</span></div>
+        <div class="card"><span class="label">Signal-to-Noise Ratio</span><span id="snr_val" class="value">--</span><span class="unit">dB</span></div>
     </div>
 
     <div class="charts-stack">
@@ -69,130 +69,3 @@
             <button class="btn-reset-top" onclick="resetZoom('rssiChart', -140, -40)">RESET</button>
             <div class="chart-container"><canvas id="rssiChart"></canvas></div>
             <div class="controls-row">
-                <button class="btn-nav" onclick="moveX('rssiChart', 150)">◀ LEWO</button>
-                <button class="btn-nav" onclick="moveX('rssiChart', -150)">PRAWO ▶</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 0.6)">ZOOM +</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 1.4)">ZOOM -</button>
-            </div>
-        </div>
-
-        <div class="chart-wrapper" style="border-left: 5px solid #f472b6;">
-            <div class="chart-header">
-                <span class="chart-title">Jakość Połączenia <span class="chart-title-unit">[dB]</span></span>
-            </div>
-            <button class="btn-reset-top" onclick="resetZoom('snrChart', -20, 15)">RESET</button>
-            <div class="chart-container"><canvas id="snrChart"></canvas></div>
-            <div class="controls-row">
-                <button class="btn-nav" onclick="moveX('snrChart', 150)">◀ LEWO</button>
-                <button class="btn-nav" onclick="moveX('snrChart', -150)">PRAWO ▶</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 0.6)">ZOOM +</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 1.4)">ZOOM -</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="status">STATUS SERWERA: <span id="timestamp">ŁADOWANIE...</span></div>
-
-    <script>
-        const USER = "S_K_";
-        let charts = {};
-
-        function createChart(id, label, color, bgColor, minY, maxY, unit) {
-            const ctx = document.getElementById(id).getContext('2d');
-            charts[id] = new Chart(ctx, {
-                type: 'line',
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: bgColor, borderWidth: 2.5, fill: true, tension: 0.3, pointRadius: 1 }] },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: { duration: 400 },
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: { 
-                            backgroundColor: '#1e293b', 
-                            titleColor: '#38bdf8', 
-                            bodyColor: '#ffffff', 
-                            callbacks: { label: (ctx) => ` Wartość: ${ctx.raw} ${unit}` } 
-                        },
-                        zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, mode: 'x' } } 
-                    },
-                    scales: {
-                        x: { 
-                            ticks: { color: '#ffffff', font: { size: 11, weight: '500' } }, 
-                            grid: { display: false } 
-                        },
-                        y: { 
-                            min: minY, 
-                            max: maxY, 
-                            ticks: { 
-                                color: '#ffffff', 
-                                font: { size: 13, weight: 'bold' },
-                                padding: 8
-                            }, 
-                            grid: { color: 'rgba(71, 85, 105, 0.4)' } 
-                        }
-                    }
-                }
-            });
-        }
-
-        function moveX(id, amount) { charts[id].pan({ x: amount }, undefined, 'default'); }
-
-        function smartZoomY(id, factor) {
-            const chart = charts[id];
-            const data = chart.data.datasets[0].data;
-            if (data.length === 0) return;
-            const lastValues = data.slice(-10).map(Number);
-            const average = lastValues.reduce((a, b) => a + b, 0) / lastValues.length;
-            const currentRange = (chart.options.scales.y.max - chart.options.scales.y.min) * factor;
-            chart.options.scales.y.min = average - (currentRange / 2);
-            chart.options.scales.y.max = average + (currentRange / 2);
-            chart.update();
-        }
-
-        function resetZoom(id, min, max) {
-            charts[id].resetZoom();
-            charts[id].options.scales.y.min = min;
-            charts[id].options.scales.y.max = max;
-            charts[id].update();
-        }
-
-        async function updateDashboard() {
-            const feeds = [
-                { key: 'ads', chart: 'ampChart', valId: 'ads_val', unit: 'A' },
-                { key: 'rssi', chart: 'rssiChart', valId: 'rssi_val', unit: 'dBm' },
-                { key: 'snr', chart: 'snrChart', valId: 'snr_val', unit: 'dB' }
-            ];
-
-            for (const feed of feeds) {
-                try {
-                    const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${feed.key}/data?limit=100`);
-                    if (!res.ok) continue;
-                    const data = await res.json();
-                    
-                    if (data.length > 0) {
-                        const lastVal = data[0].value;
-                        document.getElementById(feed.valId).innerText = lastVal;
-
-                        if (feed.chart) {
-                            const chart = charts[feed.chart];
-                            chart.data.labels = data.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
-                            chart.data.datasets[0].data = data.map(d => d.value).reverse();
-                            chart.update('none');
-                        }
-                    }
-                } catch (e) { console.error("Błąd feedu:", feed.key, e); }
-            }
-            document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
-        }
-
-        // Inicjalizacja z poprawnymi jednostkami
-        createChart('ampChart', 'Prąd', '#10b981', 'rgba(16, 185, 129, 0.1)', -60, 60, 'A');
-        createChart('rssiChart', 'Moc', '#38bdf8', 'rgba(56, 189, 248, 0.1)', -140, -40, 'dBm');
-        createChart('snrChart', 'Jakość', '#f472b6', 'rgba(244, 114, 182, 0.1)', -20, 15, 'dB');
-
-        setInterval(updateDashboard, 3000);
-        updateDashboard();
-    </script>
-</body>
-</html>

@@ -26,6 +26,202 @@
         .chart-container { position: relative; height: 280px; width: 100%; }
 
         .controls-row { display: flex; justify-content: center; gap: 8px; margin-top: 15px; }
+        .btn-nav { background: #334155; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 0.7rem; cursor: pointer; font-weight: bold; min-width: 80px; border-bottom: 3px solid rgba(0,0,0,0.3); transition: all 0.1s; }
+        .btn-zoom { background: #0369a1; }
+        .btn-nav:active { transform: translateY(2px); border-bottom: none; }
+        
+        .btn-reset-top { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.1); padding: 5px 10px; font-size: 0.6rem; border-radius: 4px; border: none; color: white; cursor: pointer; z-index: 10; font-weight: bold; }
+
+        #status-container { margin-top: 25px; font-size: 0.8rem; text-align: center; width: 100%; padding-bottom: 30px; }
+        #status-text { color: #94a3b8; }
+        #timestamp { color: #38bdf8; font-weight: bold; }
+        #error-msg { color: #ef4444; font-size: 0.7rem; display: block; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <h1>STACJA MONITORINGU ŁADOWANIA</h1>
+    
+    <div class="grid">
+        <div class="card"><span class="label">Pobór Prądu</span><span id="ads_val" class="value">--</span><span class="unit">A</span></div>
+        <div class="card"><span class="label">Moc (RSSI)</span><span id="rssi_val" class="value">--</span><span class="unit">dBm</span></div>
+        <div class="card"><span class="label">Signal-to-Noise Ratio</span><span id="snr_val" class="value">--</span><span class="unit">dB</span></div>
+    </div>
+
+    <div class="charts-stack">
+        <div class="chart-wrapper" style="border-left-color: #10b981;">
+            <div class="chart-header"><span class="chart-title">Natężenie Prądu <span class="chart-title-unit">[A]</span></span></div>
+            <button class="btn-reset-top" onclick="resetZoom('ampChart', -60, 60)">RESET</button>
+            <div class="chart-container"><canvas id="ampChart"></canvas></div>
+            <div class="controls-row">
+                <button class="btn-nav" onclick="moveX('ampChart', 150)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('ampChart', -150)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 0.5)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('ampChart', 2.0)">ZOOM -</button>
+            </div>
+        </div>
+
+        <div class="chart-wrapper" style="border-left-color: #38bdf8;">
+            <div class="chart-header"><span class="chart-title">Poziom Sygnału <span class="chart-title-unit">[dBm]</span></span></div>
+            <button class="btn-reset-top" onclick="resetZoom('rssiChart', -140, -40)">RESET</button>
+            <div class="chart-container"><canvas id="rssiChart"></canvas></div>
+            <div class="controls-row">
+                <button class="btn-nav" onclick="moveX('rssiChart', 150)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('rssiChart', -150)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 0.5)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 2.0)">ZOOM -</button>
+            </div>
+        </div>
+
+        <div class="chart-wrapper" style="border-left-color: #f472b6;">
+            <div class="chart-header"><span class="chart-title">Signal-to-Noise Ratio <span class="chart-title-unit">[dB]</span></span></div>
+            <button class="btn-reset-top" onclick="resetZoom('snrChart', -20, 15)">RESET</button>
+            <div class="chart-container"><canvas id="snrChart"></canvas></div>
+            <div class="controls-row">
+                <button class="btn-nav" onclick="moveX('snrChart', 150)">◀ LEWO</button>
+                <button class="btn-nav" onclick="moveX('snrChart', -150)">PRAWO ▶</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 0.5)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 2.0)">ZOOM -</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="status-container">
+        <span id="status-text">STATUS: <span id="timestamp">ŁĄCZENIE...</span></span>
+        <span id="error-msg"></span>
+    </div>
+
+    <script>
+        const USER = "S_K_";
+        const AIO_KEY = ""; 
+
+        const charts = {};
+
+        function createChart(id, color, minY, maxY, unit) {
+            const ctx = document.getElementById(id).getContext('2d');
+            charts[id] = new Chart(ctx, {
+                type: 'line',
+                data: { labels: [], datasets: [{ data: [], borderColor: color, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 1 }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false }, 
+                        zoom: { 
+                            pan: { enabled: true, mode: 'x' }, 
+                            zoom: { wheel: { enabled: true }, mode: 'x' } 
+                        } 
+                    },
+                    scales: {
+                        x: { ticks: { color: '#ffffff', font: { size: 10 } }, grid: { display: false } },
+                        y: { min: minY, max: maxY, ticks: { color: '#ffffff', font: { weight: 'bold', size: 12 } }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                    }
+                }
+            });
+        }
+
+        // Poprawiona funkcja przesuwania - ujemna wartość dla 'x' przesuwa w prawo (do nowszych danych)
+        function moveX(id, amount) { 
+            if(charts[id]) {
+                charts[id].pan({ x: amount }, undefined, 'default'); 
+            }
+        }
+        
+        function smartZoomY(id, factor) {
+            const chart = charts[id];
+            const data = chart.data.datasets[0].data;
+            if (!data || data.length === 0) return;
+
+            const numValues = data.map(Number);
+            const sum = numValues.reduce((a, b) => a + b, 0);
+            const avg = sum / numValues.length;
+
+            const scale = chart.options.scales.y;
+            const currentRange = scale.max - scale.min;
+            const newRange = currentRange * factor;
+
+            scale.min = avg - (newRange / 2);
+            scale.max = avg + (newRange / 2);
+            chart.update();
+        }
+
+        function resetZoom(id, min, max) {
+            if(charts[id]) {
+                charts[id].resetZoom();
+                charts[id].options.scales.y.min = min;
+                charts[id].options.scales.y.max = max;
+                chart.update();
+            }
+        }
+
+        async function updateData() {
+            const config = [
+                { k: 'ads', c: 'ampChart', v: 'ads_val' },
+                { k: 'rssi', c: 'rssiChart', v: 'rssi_val' },
+                { k: 'snr', c: 'snrChart', v: 'snr_val' }
+            ];
+
+            let hasErrors = false;
+
+            for (const item of config) {
+                try {
+                    const headers = AIO_KEY ? { 'X-AIO-Key': AIO_KEY } : {};
+                    const r = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${item.k}/data?limit=50`, { headers });
+                    
+                    if (!r.ok) { hasErrors = true; continue; }
+
+                    const data = await r.json();
+                    if (data && data.length > 0) {
+                        document.getElementById(item.v).innerText = data[0].value;
+                        const chart = charts[item.c];
+                        chart.data.labels = data.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
+                        chart.data.datasets[0].data = data.map(d => d.value).reverse();
+                        
+                        // Aktualizacja bez resetowania widoku (zachowuje zoom użytkownika)
+                        chart.update('none');
+                    }
+                } catch (e) { hasErrors = true; }
+            }
+            document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
+            document.getElementById('error-msg').innerText = hasErrors ? "Błąd połączenia z serwerem danych." : "";
+        }
+
+        createChart('ampChart', '#10b981', -60, 60, 'A');
+        createChart('rssiChart', '#38bdf8', -140, -40, 'dBm');
+        createChart('snrChart', '#f472b6', -20, 15, 'dB');
+
+        updateData();
+        setInterval(updateData, 5000);
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Monitor LoRa</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
+    <style>
+        body { font-family: sans-serif; background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; }
+        h1 { color: #38bdf8; font-size: 1.2rem; text-transform: uppercase; margin: 15px 0; text-align: center; }
+        
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 900px; margin-bottom: 20px; }
+        .card { background: #1e293b; padding: 15px 5px; border-radius: 12px; border-top: 3px solid #38bdf8; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .label { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 5px; }
+        .value { font-size: 1.4rem; font-weight: bold; color: #ffffff; }
+        .unit { font-size: 0.8rem; color: #38bdf8; margin-left: 2px; text-transform: none; }
+
+        .charts-stack { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 900px; }
+        .chart-wrapper { background: #1e293b; border-radius: 16px; padding: 15px; position: relative; border-left: 5px solid #334155; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        
+        .chart-header { display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+        .chart-title { font-size: 0.85rem; font-weight: bold; text-transform: uppercase; color: #ffffff; }
+        .chart-title-unit { color: #38bdf8; font-size: 0.8rem; margin-left: 5px; text-transform: none; }
+
+        .chart-container { position: relative; height: 280px; width: 100%; }
+
+        .controls-row { display: flex; justify-content: center; gap: 8px; margin-top: 15px; }
         .btn-nav { background: #334155; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 0.7rem; cursor: pointer; font-weight: bold; min-width: 70px; border-bottom: 3px solid rgba(0,0,0,0.2); }
         .btn-zoom { background: #0369a1; }
         .btn-nav:active { transform: translateY(2px); border-bottom: none; }
@@ -207,3 +403,4 @@
     </script>
 </body>
 </html>
+

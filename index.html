@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Monitor 433MHz: Auto-Centrowanie</title>
+    <title>Nadajnik 1: Real-Time Monitor</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
     <style>
@@ -20,8 +20,9 @@
         .chart-container { position: relative; height: 350px; width: 100%; }
 
         .controls-row { display: flex; justify-content: center; gap: 8px; margin-top: 15px; }
-        .btn-nav { background: #334155; color: #f8fafc; border: none; padding: 12px; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: bold; min-width: 75px; text-transform: uppercase; }
+        .btn-nav { background: #334155; color: #f8fafc; border: none; padding: 12px; border-radius: 8px; font-size: 0.7rem; cursor: pointer; font-weight: bold; min-width: 75px; text-transform: uppercase; border-bottom: 3px solid rgba(0,0,0,0.2); }
         .btn-nav:hover { background: #38bdf8; color: #0f172a; }
+        .btn-nav:active { transform: translateY(2px); border-bottom: none; }
         
         .btn-zoom { background: #0369a1; }
         .btn-reset-top { position: absolute; top: 10px; right: 10px; background: rgba(71, 85, 105, 0.7); padding: 5px 10px; font-size: 0.6rem; border-radius: 4px; border: none; color: white; cursor: pointer; z-index: 10; }
@@ -32,7 +33,7 @@
 </head>
 <body>
 
-    <h1>NADAJNIK 1: MONITOR 433 MHz</h1>
+    <h1>NADAJNIK 1: MONITOR 433 MHz (3s UP)</h1>
     
     <div class="grid">
         <div class="card"><span class="label">Moc (RSSI)</span><span id="rssi_val" class="value">--</span></div>
@@ -47,8 +48,8 @@
             <div class="controls-row">
                 <button class="btn-nav" onclick="moveX('snrChart', 150)">◀ LEWO</button>
                 <button class="btn-nav" onclick="moveX('snrChart', -150)">PRAWO ▶</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 0.7)">ZOOM +</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 1.3)">ZOOM -</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 0.6)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('snrChart', 1.4)">ZOOM -</button>
             </div>
         </div>
 
@@ -58,8 +59,8 @@
             <div class="controls-row">
                 <button class="btn-nav" onclick="moveX('rssiChart', 150)">◀ LEWO</button>
                 <button class="btn-nav" onclick="moveX('rssiChart', -150)">PRAWO ▶</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 0.7)">ZOOM +</button>
-                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 1.3)">ZOOM -</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 0.6)">ZOOM +</button>
+                <button class="btn-nav btn-zoom" onclick="smartZoomY('rssiChart', 1.4)">ZOOM -</button>
             </div>
         </div>
     </div>
@@ -74,11 +75,11 @@
             const ctx = document.getElementById(id).getContext('2d');
             charts[id] = new Chart(ctx, {
                 type: 'line',
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: bgColor, borderWidth: 2, fill: true, tension: 0.2, pointRadius: 1 }] },
+                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: bgColor, borderWidth: 2, fill: true, tension: 0.3, pointRadius: 1.5 }] },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: { duration: 300 },
+                    animation: { duration: 400, easing: 'easeOutQuart' },
                     plugins: {
                         legend: { display: false },
                         zoom: {
@@ -93,80 +94,3 @@
                 }
             });
         }
-
-        function moveX(id, amount) {
-            charts[id].pan({ x: amount }, undefined, 'default');
-        }
-
-        // Nowa funkcja inteligentnego zoomu z centrowaniem na danych
-        function smartZoomY(id, factor) {
-            const chart = charts[id];
-            const data = chart.data.datasets[0].data;
-            
-            if (data.length === 0) return;
-
-            // 1. Znajdujemy aktualnie widoczne dane lub ostatnie punkty
-            const lastValues = data.slice(-20).map(Number);
-            const average = lastValues.reduce((a, b) => a + b, 0) / lastValues.length;
-
-            // 2. Pobieramy aktualny zakres
-            const currentMin = chart.options.scales.y.min;
-            const currentMax = chart.options.scales.y.max;
-            const currentRange = currentMax - currentMin;
-
-            // 3. Obliczamy nowy zakres (rozciągnięcie/zwężenie)
-            const newRange = currentRange * factor;
-
-            // 4. Ustawiamy nowy zakres wycentrowany na średniej wartości danych
-            chart.options.scales.y.min = average - (newRange / 2);
-            chart.options.scales.y.max = average + (newRange / 2);
-            
-            chart.update();
-        }
-
-        function resetZoom(id, defaultMin, defaultMax) {
-            const chart = charts[id];
-            chart.resetZoom();
-            chart.options.scales.y.min = defaultMin;
-            chart.options.scales.y.max = defaultMax;
-            chart.update();
-        }
-
-        async function updateDashboard() {
-            try {
-                const resGroup = await fetch(`https://io.adafruit.com/api/v2/${USER}/groups/default/feeds?cb=${Date.now()}`);
-                const groupData = await resGroup.json();
-                groupData.forEach(feed => {
-                    const el = document.getElementById(feed.key + '_val');
-                    if (el && feed.last_value !== null) el.innerText = feed.last_value;
-                });
-
-                const fetchKey = async (key, chartId) => {
-                    const res = await fetch(`https://io.adafruit.com/api/v2/${USER}/feeds/${key}/data?limit=300`);
-                    const history = await res.json();
-                    const labels = history.map(d => new Date(d.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})).reverse();
-                    const values = history.map(d => d.value).reverse();
-
-                    charts[chartId].data.labels = labels;
-                    charts[chartId].data.datasets[0].data = values;
-                    
-                    if (charts[chartId].getZoomLevel && charts[chartId].getZoomLevel() === 1) {
-                        charts[chartId].update('none');
-                    }
-                };
-
-                await fetchKey('snr', 'snrChart');
-                await fetchKey('rssi', 'rssiChart');
-                document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
-            } catch (e) { console.error(e); }
-        }
-
-        createChart('snrChart', 'SNR', '#f472b6', 'rgba(244, 114, 182, 0.1)', -20, 15);
-        createChart('rssiChart', 'RSSI', '#38bdf8', 'rgba(56, 189, 248, 0.1)', -140, -40);
-
-        updateDashboard();
-        setInterval(updateDashboard, 3000);
-    </script>
-</body>
-</html>
-

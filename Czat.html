@@ -1,0 +1,795 @@
+<!DOCTYPE html> 
+<html lang="pl"> 
+<head> 
+    <meta charset="UTF-8"> 
+    <title>LoRa Messenger Pro</title> 
+    <style> 
+        :root { --bg: #000; --head: #1a1a1a; --blue: #0084ff; --gray: #3e4042; --text: #e4e6eb; --font: 'Segoe UI', sans-serif; --danger: #ff4d4d; --warning: #ff9800; --success: #31a24c; --purple: #6a1b9a; }
+        
+        body { 
+            font-family: var(--font); background: var(--bg); color: var(--text); 
+            margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; 
+        }
+        
+        #top-bar { 
+            background: #111; border-bottom: 1px solid #333; 
+            padding: 12px 20px; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; 
+        } 
+
+        .bar-row { display: flex; align-items: center; gap: 18px; }
+        
+        .bar-row:first-child .config-group label { font-size: 13px; color: var(--blue); }
+        .bar-row:first-child select, 
+        .bar-row:first-child input[type="number"] { font-size: 16px; font-weight: bold; padding: 6px; }
+
+        .config-group { display: flex; align-items: center; gap: 8px; } 
+        label { font-size: 10px; color: #888; text-transform: uppercase; font-weight: bold; } 
+        select, input[type="range"], input[type="number"] { 
+            background: #2a2a2a; color: #fff; border: 1px solid #444; 
+            padding: 4px; border-radius: 6px; font-size: 13px; font-family: var(--font); 
+        } 
+
+        #main-container { display: flex; flex: 1; overflow: hidden; } 
+
+        #chat-window { 
+            flex: 1; overflow-y: auto; padding: 20px; display: flex; 
+            flex-direction: column; gap: 5px; scroll-behavior: smooth; 
+        } 
+
+        #chat-window a:link { color: #ffffff !important; font-weight: bold; text-decoration: underline; }
+        #chat-window a:visited { color: #aaaaaa !important; font-weight: normal; text-decoration: underline; }
+        #chat-window a:hover { color: var(--blue) !important; }
+
+        .history-old { opacity: 0.4; filter: grayscale(1); transition: opacity 0.5s; }
+
+        .session-separator {
+            text-align: center; margin: 30px 0; border-bottom: 1px dashed #444;
+            line-height: 0.1em; color: var(--blue); font-size: 12px;
+            font-weight: bold; text-transform: uppercase; letter-spacing: 2px;
+        }
+        .session-separator span { background: var(--bg); padding: 0 15px; }
+
+        #assistant-panel { 
+            width: 340px; background: #111; border-left: 1px solid #333; 
+            display: flex; flex-direction: column; padding: 15px; gap: 10px; 
+            overflow-y: auto; 
+        } 
+
+        .panel-title { font-size: 13.2px; color: var(--blue); font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; } 
+        #ai-suggestion { font-size: 14.3px; line-height: 1.5; color: #ccc; margin-bottom: 10px; } 
+        .ai-stat-box { background: rgba(255,255,255,0.03); border: 1px solid #333; padding: 10px; border-radius: 8px; margin-bottom: 8px; } 
+
+        .ai-stat-label { font-size: 11px; color: var(--blue); text-transform: uppercase; margin-bottom: 5px; font-weight: bold; } 
+        .ai-stat-value { font-size: 12.1px; color: #aaa; font-family: monospace; line-height: 1.5; white-space: pre-wrap; } 
+        
+        .meter-bg { height: 12px; background: #222; border-radius: 6px; overflow: hidden; position: relative; border: 1px solid #333; }
+        #noise-fill { height: 100%; width: 0%; background: var(--success); transition: width 0.3s; }
+        #noise-dbm { font-size: 13.2px; font-family: monospace; margin-top: 4px; display: block; text-align: right; }
+
+        #limit-line { 
+            position: absolute; top: 0; bottom: 0; width: 2px; 
+            background: var(--danger); z-index: 10;
+            box-shadow: 0 0 3px rgba(255, 77, 77, 0.5);
+            transition: left 0.3s ease;
+        }
+
+        .align-val-big { font-size: 26.4px !important; font-weight: bold; color: var(--warning); display: block; }
+        .align-sub-label { font-size: 10px !important; color: #777; text-transform: uppercase; }
+
+        #input-area { 
+            height: auto; min-height: 100px; padding: 15px 20px; background: #1a1a1a; 
+            display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #333; flex-shrink: 0; 
+            position: relative; 
+        } 
+
+        .input-row { display: flex; align-items: center; gap: 10px; width: 100%; } 
+        #toa-info { font-size: 12px; color: #888; display: flex; gap: 15px; padding: 2px 0 2px 15px; } 
+        .toa-val { color: var(--blue); font-weight: bold; } 
+
+        #duty-cycle-bar { height: 3px; background: #222; width: 100%; position: relative; overflow: hidden; border-radius: 2px; } 
+        #duty-cycle-progress { height: 100%; background: var(--blue); width: 0%; transition: width 0.1s linear; } 
+
+        .msg-container { display: flex; flex-direction: column; max-width: 85%; margin-top: 15px; margin-bottom: 15px; } 
+        .msg-header { font-size: 18px; margin-bottom: 6px; font-weight: bold; color: #ffffff; display: flex; gap: 12px; align-items: center; } 
+        .sent .msg-header { flex-direction: row-reverse; } 
+        .msg-time { font-weight: bold; color: #00d4ff; font-size: 16px; } 
+
+        .sent { align-self: flex-end; align-items: flex-end; } 
+        .rcvd { align-self: flex-start; align-items: flex-start; } 
+        
+        .bubble { padding: 12px 20px; border-radius: 22px; font-size: 22.5px; line-height: 1.45; word-wrap: break-word; position: relative; } 
+        .sent .bubble { background: var(--blue); border-bottom-right-radius: 4px; color: white; } 
+        .rcvd .bubble { background: var(--gray); border-bottom-left-radius: 4px; color: white; } 
+        
+        .diag-wrapper { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+        .diag { font-family: monospace; font-size: 15px; color: #ccc; white-space: pre-wrap; line-height: 1.4; text-align: left; padding: 0 4px; }
+        .remote-diag { color: #00d4ff; font-size: 14px; margin-top: 10px; font-style: italic; text-align: left; font-family: monospace; line-height: 1.4; white-space: pre-wrap; display: flex; gap: 12px; align-items: center;} 
+
+        .copy-btn { 
+            background: rgba(255,255,255,0.05); border: 1px solid #444; color: #bbb; 
+            cursor: pointer; padding: 4px 8px; border-radius: 6px; 
+            font-size: 18px; transition: 0.2s; display: flex; align-items: center; justify-content: center;
+        }
+        .copy-btn:hover { background: #333; color: #fff; border-color: var(--blue); transform: scale(1.1); }
+        .copy-btn:active { transform: scale(0.95); }
+
+        .config-table { width: 100%; border-collapse: collapse; margin-top: 8px; background: rgba(255,255,255,0.05); border-radius: 8px; overflow: hidden; border: 1px solid #444; } 
+        .config-table td { padding: 8px 12px; border-bottom: 1px solid #333; } 
+        .config-table td.label { color: #aaa; font-weight: bold; width: 45%; text-transform: uppercase; font-size: 12px; } 
+        .config-table td.value { color: #fff; text-align: right; font-family: monospace; font-size: 16.8px; font-weight: bold; } 
+
+        input[type="text"] { flex: 1; background: #3a3b3c; border: none; padding: 12px 20px; border-radius: 30px; color: #fff; outline: none; font-size: 24px; font-weight: 500; } 
+
+        .btn { background: var(--blue); color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: var(--font); } 
+        .btn-set { background: #31a24c; } 
+        .btn-read { background: #ff9800; }
+        .btn-off { background: #a23131; } 
+        .btn-save { background: #6c757d; } 
+        .btn-align { background: var(--purple); border: 1px solid #9c27b0; }
+        .btn-align.active { background: var(--danger); animation: blink 1s infinite; }
+        .btn-tts { background: #555; }
+        .btn-tts.active { background: var(--success); }
+
+        @keyframes blink { 50% { opacity: 0.6; } }
+        
+        #btnSerial { min-width: 130px; text-align: center; }
+        #emoji-btn { background: none; border: none; font-size: 28px; cursor: pointer; padding: 5px; filter: grayscale(1); transition: 0.2s; } 
+        #setVoice { max-width: 150px; }
+        #setVol { width: 80px; vertical-align: middle; }
+        #setAlignTime { background: #2a2a2a; color: #fff; border: 1px solid #444; padding: 4px; border-radius: 6px; font-size: 13px; font-family: var(--font); }
+        
+        #ai-sensitivity-box { border-color: #666; background: rgba(102, 102, 102, 0.05); }
+        .sensitivity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; font-family: monospace; color: #ddd; }
+        .sensitivity-val { color: var(--success); font-weight: bold; }
+    </style> 
+</head> 
+<body> 
+
+<audio id="notif-sound" src="chat.wav" preload="auto"></audio>
+<audio id="tuning-sound" src="strojenie.wav" preload="auto"></audio>
+
+<div id="top-bar"> 
+    <div class="bar-row">
+        <div class="config-group"> 
+            <label>MODEM:</label> 
+            <select id="setModemType" onchange="updateFreqLimits(); updateSensitivity();document.getElementById('msgIn').focus();"> 
+                <option value="433" selected>433 MHz (SX1268)</option> 
+                <option value="868">868 MHz (SX1262)</option> 
+            </select> 
+        </div>
+        <div class="config-group"> 
+            <label>CZĘSTOTLIWOŚĆ:</label> 
+            <input type="number" id="setF" step="0.001" min="410" max="450" value="433.000" style="width: 105px;"oninput="document.getElementById('msgIn').focus();"> 
+            <span style="font-size: 14px; font-weight: bold;">MHz</span>
+        </div>
+        <div class="config-group"> 
+            <label>Moc:</label> 
+            <input type="range" id="setP" min="2" max="22" value="22" oninput="updatePowerLabels(this.value);document.getElementById('msgIn').focus();"> 
+            <div id="pContainer" style="display:flex; align-items:center; gap:4px; min-width:210px;">
+                <span id="pVal" style="font-size:16px; font-weight:bold; color:var(--blue);">22</span> 
+                <span style="font-size: 14px; font-weight: bold; color:var(--blue);">dBm</span> 
+                <span id="pDet" style="font-size:14px; font-family:monospace; color:#fff;">(158.5 mW / 2815 mV @ 50Ω)</span>
+            </div> 
+        </div> 
+        <div class="config-group"> 
+            <label>SF:</label> 
+            <select id="setSF" onchange="calcToA(); updateSensitivity();document.getElementById('msgIn').focus();"> 
+                <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+                <option value="9" selected>9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option> 
+            </select> 
+        </div> 
+        <div class="config-group"> 
+            <label>BW:</label> 
+            <select id="setBW" onchange="calcToA(); updateSensitivity();document.getElementById('msgIn').focus();"> 
+                <option value="500.0">500.0 kHz</option><option value="250.0">250.0 kHz</option>
+                <option value="125.0" selected>125.0 kHz</option><option value="62.5">62.5 kHz</option> 
+            </select> 
+        </div> 
+        <div class="config-group"> 
+            <label>DC:</label> 
+            <select id="setDC" onchange="calcToA(); document.getElementById('msgIn').focus();" style="border-color: var(--blue);"> 
+                <option value="100">1% (Bezpieczny)</option> 
+                <option value="10" selected>10% (UKE PL)</option> 
+            </select> 
+        </div> 
+    </div>
+
+    <div class="bar-row">
+        <button class="btn" id="btnSerial" onclick="toggleSerial()">POŁĄCZ USB</button> 
+        <button class="btn btn-set" id="btnSet" onclick="applyLocal()" disabled>USTAW</button> 
+        <button class="btn btn-read" id="btnRead" onclick="readConfig()" disabled>ODCZYTAJ</button> 
+        <button class="btn btn-save" id="btnSave" onclick="exportHistory()" disabled>ZAPISZ (RTF)</button>
+        <button class="btn btn-off" id="btnClear" onclick="clearHistory()" disabled>WYCZYŚĆ CZAT</button>
+        <div class="config-group" style="gap:5px;">
+            <button class="btn btn-align" id="btnAlign" onclick="toggleAlignment()" disabled>STROJENIE</button>
+  <select id="setAlignTime" onchange="document.getElementById('msgIn').focus();">
+                <option value="0.04" selected>5 s</option>
+                <option value="0.08">10 s</option>
+                <option value="0.25">30 s</option>
+                <option value="0.5">1 min</option>
+                <option value="1">2 min</option>
+                <option value="2.5">5 min</option>
+                <option value="5">10 min</option>
+                <option value="15">30 min</option>
+                <option value="30">1 h</option>
+                <option value="60">2 h</option>
+                <option value="150">5 h</option>
+                <option value="300">10 h</option>
+            </select>
+        </div>
+        <div class="config-group">
+            <button class="btn btn-tts" id="btnTTS" onclick="toggleTTS()">LEKTOR: WYŁ.</button>
+            <label>Głos:</label>
+            <select id="setVoice" onchange="testVoiceSelection()"></select>
+            <label>Głośność:</label>
+            <input type="range" id="setVol" min="0" max="1" step="0.1" value="1" oninput="if(ttsEnabled) speak('Głośność'); document.getElementById('msgIn').focus();">
+        </div>
+    </div>
+</div> 
+
+<div id="main-container"> 
+    <div id="chat-window"></div> 
+    <div id="assistant-panel"> 
+        <div class="panel-title">Asystent LoRa</div> 
+        <div class="ai-stat-box" style="border-color: var(--blue);"> 
+            <div class="ai-stat-label">Ostatnia wiadomość</div> 
+            <div id="ai-last-contact" class="ai-stat-value" style="color: #fff; font-weight: bold;">Brak wiadomości</div> 
+        </div> 
+
+        <div class="ai-stat-box" id="ai-sensitivity-box">
+            <div class="ai-stat-label">Limit Odbioru (Czułość)</div>
+            <div class="sensitivity-grid">
+                <div>Min RSSI:</div><div class="sensitivity-val" id="sens-rssi">-124 dBm</div>
+                <div>Min SNR:</div><div class="sensitivity-val" id="sens-snr">-15.0 dB</div>
+            </div>
+        </div>
+
+        <div class="ai-stat-box" style="border-color: var(--warning); background: rgba(255, 152, 0, 0.05);">
+            <div class="ai-stat-label" style="color: var(--warning);">Diagnostyka Strojenia</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 5px 0; text-align: center;">
+                <div><span id="align-rssi-big" class="align-val-big">--</span><span class="align-sub-label">dBm (RSSI)</span></div>
+                <div><span id="align-snr-big" class="align-val-big">--</span><span class="align-sub-label">dB (SNR)</span></div>
+            </div>
+            <div class="meter-bg"><div id="align-fill" style="height:100%; width:0%; background:var(--warning); transition:0.2s;"></div></div>
+        </div>
+        <div class="ai-stat-box">
+            <div class="ai-stat-label">Monitor Eteru (Tło)</div>
+            <div class="meter-bg">
+                <div id="noise-fill"></div>
+                <div id="limit-line"></div>
+            </div>
+            <span id="noise-dbm">-130 dBm</span>
+        </div>
+        <div id="ai-suggestion">Czekam na dane...</div> 
+        <div class="ai-stat-box"> 
+            <div class="ai-stat-label">Sygnał u Ciebie (średnia)</div> 
+            <div id="ai-stat-local" class="ai-stat-value">Brak danych</div> 
+        </div> 
+        <div class="ai-stat-box"> 
+            <div class="ai-stat-label">Sygnał u Rozmówcy</div> 
+            <div id="ai-stat-remote" class="ai-stat-value">Brak danych</div> 
+        </div> 
+    </div> 
+</div> 
+
+<div id="input-area"> 
+    <div id="emoji-panel" style="position:absolute; bottom:100px; left:20px; background:#2a2a2a; border:1px solid #444; border-radius:12px; padding:10px; display:none; grid-template-columns:repeat(6, 1fr); gap:5px; z-index:100;"> 
+        <div class="emoji-item" style="cursor:pointer; font-size:20px;" onclick="addEmoji('😊')">😊</div><div class="emoji-item" style="cursor:pointer; font-size:20px;" onclick="addEmoji('😂')">😂</div>
+        <div class="emoji-item" style="cursor:pointer; font-size:20px;" onclick="addEmoji('👍')">👍</div><div class="emoji-item" style="cursor:pointer; font-size:20px;" onclick="addEmoji('❤️')">❤️</div>
+        <div class="emoji-item" style="cursor:pointer; font-size:20px;" onclick="addEmoji('🚀')">🚀</div><div class="emoji-item" style="cursor:pointer; font-size:20px;" onclick="addEmoji('📡')">📡</div>
+    </div> 
+    <div class="input-row"> 
+        <button id="emoji-btn" onclick="toggleEmoji(event)">😊</button> 
+        <input type="text" id="msgIn" placeholder="Aa" disabled onkeypress="if(event.keyCode==13)sendMessage()" oninput="calcToA()"> 
+        <button class="btn" id="btnSend" style="padding: 12px 25px; font-size: 18px;" onclick="sendMessage()" disabled>WYŚLIJ</button> 
+    </div> 
+    <div id="toa-info"> 
+        <span>ToA: <span id="toa-time" class="toa-val">0 ms</span></span> 
+        <span>Przerwa (<span id="dc-label">Duty Cycle 10%</span>): <span id="wait-time" class="toa-val">0 ms</span></span>
+    </div> 
+    <div id="duty-cycle-bar"><div id="duty-cycle-progress"></div></div> 
+</div> 
+
+<script> 
+    let port = null, reader = null, keepReading = false; 
+    let localHistory = []; let remoteHistory = []; 
+    let lastContactTime = null; 
+    
+    let isAligning = false;
+    let alignInterval = null; 
+    let alignTimeout = null;
+
+    let ttsEnabled = false;
+    let systemVoices = [];
+
+    const SCALE_MIN = -148; 
+    const SCALE_MAX = 0;
+
+    const snrLimits = { 5: -5.0, 6: -7.5, 7: -10.0, 8: -12.5, 9: -15.0, 10: -17.5, 11: -20.0, 12: -25.0 };
+
+    // --- KLUCZOWE ZDARZENIE DLA USB ---
+    navigator.serial.addEventListener('disconnect', (event) => {
+        if (port && event.target === port) {
+            console.warn("Wykryto odłączenie urządzenia USB.");
+            handleForcedDisconnect();
+        }
+    });
+
+    async function handleForcedDisconnect() {
+        keepReading = false;
+        if (isAligning) stopAlignmentManually();
+        
+        if (reader) {
+            try { await reader.cancel(); } catch(e) {}
+            reader = null;
+        }
+        if (port) {
+            try { await port.close(); } catch(e) {}
+            port = null;
+        }
+        updateUI(false);
+    }
+
+    function updateSensitivity() {
+        const sf = parseInt(document.getElementById('setSF').value);
+        const bw = parseFloat(document.getElementById('setBW').value);
+        const snrLim = snrLimits[sf] || -15.0;
+        const sensitivity = -174 + (10 * Math.log10(bw * 1000)) + 6 + snrLim;
+        document.getElementById('sens-rssi').innerText = sensitivity.toFixed(1) + " dBm";
+        document.getElementById('sens-snr').innerText = snrLim.toFixed(1) + " dB";
+        window.currentSensitivityLimit = sensitivity;
+        const limitLine = document.getElementById('limit-line');
+        let percentage = ((sensitivity - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100;
+        limitLine.style.left = Math.min(Math.max(percentage, 0), 100) + "%";
+    }
+
+    function playTuningFile() {
+        const audio = document.getElementById('tuning-sound');
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log("Audio blocked: " + e));
+    }
+
+    function loadVoices() {
+        if (!window.speechSynthesis) return;
+        let allVoices = window.speechSynthesis.getVoices();
+        systemVoices = allVoices.filter(voice => voice.localService === true); 
+        const voiceSelect = document.getElementById('setVoice');
+        voiceSelect.innerHTML = '';
+        systemVoices.forEach((voice, index) => {
+            const opt = document.createElement('option');
+            opt.value = index;
+            opt.textContent = `${voice.name.replace('Microsoft', '').replace('Desktop', '').trim()} (${voice.lang})`;
+            if(voice.lang.startsWith('pl')) opt.selected = true; 
+            voiceSelect.appendChild(opt);
+        });
+    }
+
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    function testVoiceSelection() {
+        if(ttsEnabled) {
+            const selectedIdx = document.getElementById('setVoice').value;
+            const lang = systemVoices[selectedIdx].lang;
+            const testMsg = lang.startsWith('pl') ? 'Głos lokalny aktywny' : 'Local voice active';
+            speak(testMsg);
+        }
+        document.getElementById('msgIn').focus();
+    }
+
+    function toggleTTS() {
+        ttsEnabled = !ttsEnabled;
+        const btn = document.getElementById('btnTTS');
+        btn.innerText = ttsEnabled ? "LEKTOR: WŁ." : "LEKTOR: WYŁ.";
+        btn.classList.toggle('active', ttsEnabled);
+        if(ttsEnabled) speak("System mowy gotowy");
+        document.getElementById('msgIn').focus();
+    }
+
+    function speak(text) {
+        if (!window.speechSynthesis || (!ttsEnabled && text !== "System mowy gotowy" && text !== "Głośność")) return;
+        window.speechSynthesis.cancel();
+        const urlPattern = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%?=~_|]|(\bwww\.[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|]))/ig;
+        const emojiPattern = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
+        let cleanText = text.replace(urlPattern, "").replace(emojiPattern, "").trim();
+        if (!cleanText) return;
+        const segments = cleanText.match(/[\u0400-\u04FF\s]+|[^\u0400-\u04FF]+/g);
+        if (!segments) return;
+        const volume = parseFloat(document.getElementById('setVol').value);
+        const selectedIdx = document.getElementById('setVoice').value;
+        const defaultVoice = systemVoices[selectedIdx];
+        const foreignVoice = systemVoices.find(v => v.lang.startsWith('ru') || v.lang.startsWith('uk') || v.lang.startsWith('be'));
+        segments.forEach(part => {
+            if (part.trim().length === 0) return;
+            const msg = new SpeechSynthesisUtterance(part);
+            msg.volume = volume;
+            const isCyrillic = /[\u0400-\u04FF]/.test(part);
+            if (isCyrillic && foreignVoice) { msg.voice = foreignVoice; msg.lang = foreignVoice.lang; } 
+            else if (defaultVoice) { msg.voice = defaultVoice; msg.lang = defaultVoice.lang; }
+            window.speechSynthesis.speak(msg);
+        });
+    }
+
+    function encodeRTF(text) {
+        return text.split('').map(char => {
+            const code = char.charCodeAt(0);
+            if (code > 127) return `\\u${code}?`;
+            if (char === '\\' || char === '{' || char === '}') return `\\${char}`;
+            if (char === '\n') return '\\line ';
+            return char;
+        }).join('');
+    }
+
+    function exportHistory() {
+        const messages = document.querySelectorAll('.msg-container');
+        if (messages.length === 0) { alert("Historia jest pusta."); return; }
+        let rtf = "{\\rtf1\\ansi\\ansicpg1250\\deff0 {\\fonttbl {\\f0 Segoe UI;}}\n";
+        rtf += "{\\colortbl ;\\red0\\green132\\blue255;\\red128\\green128\\blue128;}\n";
+        rtf += "\\fs28\\b HISTORIA LORA\\b0\\fs20\\line\\line\n";
+        messages.forEach(msg => {
+            const sender = msg.querySelector('.msg-header span:first-child')?.innerText || "System";
+            const time = msg.querySelector('.msg-time')?.innerText || "";
+            const content = msg.querySelector('.bubble')?.innerText || "";
+            rtf += `\\cf1\\b [${time}] ${encodeRTF(sender)}:\\b0\\cf0\\line ${encodeRTF(content)}\\line\\line\n`;
+        });
+        rtf += "}";
+        const blob = new Blob([rtf], { type: 'application/rtf' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `LoRa_Export.rtf`; a.click();
+        document.getElementById('msgIn').focus();
+    }
+
+    function saveChat() { localStorage.setItem('lora_chat_history', document.getElementById('chat-window').innerHTML); if (lastContactTime) localStorage.setItem('lora_last_contact', lastContactTime.toISOString()); }
+    function loadChat() {
+        const saved = localStorage.getItem('lora_chat_history');
+        const savedContact = localStorage.getItem('lora_last_contact');
+        if (saved) { 
+            const win = document.getElementById('chat-window');
+            win.innerHTML = saved; 
+            const allMsgs = win.querySelectorAll('.msg-container');
+            allMsgs.forEach(m => m.classList.add('history-old'));
+            const allSeps = win.querySelectorAll('.session-separator');
+            allSeps.forEach(s => s.classList.add('history-old'));
+            scrollToBottom(); 
+        }
+        if (savedContact) lastContactTime = new Date(savedContact);
+    }
+
+    function clearHistory() { if (confirm("Czy na pewno wyczyścić historię czatu?")) { localStorage.removeItem('lora_chat_history'); localStorage.removeItem('lora_last_contact'); document.getElementById('chat-window').innerHTML = ""; lastContactTime = null; document.getElementById('ai-last-contact').innerText = "Brak wiadomości"; document.getElementById('msgIn').focus(); } }
+
+    function toggleEmoji(e) { 
+        e.stopPropagation(); 
+        const p = document.getElementById('emoji-panel'); 
+        const isOpening = p.style.display !== 'grid';
+        p.style.display = isOpening ? 'grid' : 'none'; 
+        if (!isOpening) document.getElementById('msgIn').focus();
+    }
+
+    document.addEventListener('click', (e) => { 
+        const panel = document.getElementById('emoji-panel');
+        if(!panel.contains(e.target) && panel.style.display === 'grid') { 
+            panel.style.display = 'none'; 
+            document.getElementById('msgIn').focus();
+        } 
+    });
+
+    function addEmoji(emoji) { const i = document.getElementById('msgIn'); i.value += emoji; i.focus(); calcToA(); } 
+
+    function updateLastContactCounter() { 
+        if (!lastContactTime) return; 
+        const totalSec = Math.floor((new Date() - lastContactTime) / 1000); 
+        let label = totalSec < 60 ? `${totalSec} sek temu` : (totalSec < 3600 ? `${Math.floor(totalSec / 60)} min temu` : `${Math.floor(totalSec / 3600)} godz temu`);
+        document.getElementById('ai-last-contact').innerText = label; 
+    } 
+    setInterval(updateLastContactCounter, 1000); 
+
+    function linkify(text) { 
+        const urlPattern = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%?=~_|]|(\bwww\.[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|]))/ig;
+        return text.replace(urlPattern, (match) => { 
+            let href = match.toLowerCase().startsWith('www.') ? 'http://' + match : match; 
+            return `<a href="${href}" target="_blank">${match}</a>`; 
+        }); 
+    } 
+
+    function getTimestamp() { const now = new Date(); return { date: now.toLocaleDateString(), time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }; } 
+    function getByteLength(str) { return new TextEncoder().encode(str).length; } 
+
+    function calcToA() { 
+        const text = document.getElementById('msgIn').value; 
+        const payload_len = getByteLength(text); 
+        const sf = parseInt(document.getElementById('setSF').value); 
+        const bw = parseFloat(document.getElementById('setBW').value) * 1000; 
+        const dc_multiplier = parseInt(document.getElementById('setDC').value); 
+        const t_sym = (Math.pow(2, sf) / bw) * 1000;  
+        const t_preamble = (8 + 4.25) * t_sym; 
+        const de = (t_sym > 16) ? 1 : 0;
+        const bits = 8 * payload_len - 4 * sf + 28 + 16;
+        const symbols_in_block = 4 * (sf - 2 * de);
+        const payload_sym_nb = 8 + Math.max(Math.ceil(bits / symbols_in_block) * 7, 0);
+        const total_toa = t_preamble + (payload_sym_nb * t_sym); 
+        const wait_time = total_toa * dc_multiplier;  
+        document.getElementById('toa-time').innerText = total_toa.toFixed(0) + " ms"; 
+        document.getElementById('wait-time').innerText = (wait_time / 1000).toFixed(1) + " s"; 
+        return { toa: total_toa, wait: wait_time }; 
+    } 
+
+    function startCooldown(waitMs) { 
+        const bar = document.getElementById('duty-cycle-progress'); 
+        bar.style.transition = 'none'; bar.style.width = '100%'; 
+        setTimeout(() => { bar.style.transition = `width ${waitMs}ms linear`; bar.style.width = '0%'; }, 50); 
+    }
+
+    function updateNoiseMeter(rssi) {
+        const fill = document.getElementById('noise-fill');
+        let percentage = ((rssi - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100;
+        fill.style.width = Math.min(Math.max(percentage, 0), 100) + "%";
+        document.getElementById('noise-dbm').innerText = rssi.toFixed(1) + " dBm";
+    }
+
+    function copyToClipboard(r, s, btn) {
+        const text = `R:${r.toFixed(2)} dBm S:${s.toFixed(2)} dB`;
+        navigator.clipboard.writeText(text);
+        const oldText = btn.innerText;
+        btn.innerText = "✓";
+        btn.style.borderColor = "var(--success)"; btn.style.color = "var(--success)";
+        document.getElementById('msgIn').focus();
+        setTimeout(() => { btn.innerText = oldText; btn.style.borderColor = ""; btn.style.color = ""; }, 1000);
+    }
+
+    function formatRF(rssi_dbm, snr_db, isAssistant) { 
+        const p_watts = Math.pow(10, (rssi_dbm - 30) / 10); 
+        let p_val, p_unit; 
+        if (p_watts < 1e-12) { p_val = p_watts * 1e15; p_unit = "fW"; } 
+        else if (p_watts < 1e-9) { p_val = p_watts * 1e12; p_unit = "pW"; } 
+        else if (p_watts < 1e-6) { p_val = p_watts * 1e9; p_unit = "nW"; } 
+        else if (p_watts < 1e-3) { p_val = p_watts * 1e6; p_unit = "µW"; }
+        else { p_val = p_watts * 1000; p_unit = "mW"; }
+        const v_volts = Math.sqrt(p_watts * 50); 
+        let v_val, v_unit; 
+        if (v_volts < 1e-9) { v_val = v_volts * 1e12; v_unit = "pV"; } 
+        else if (v_volts < 1e-6) { v_val = v_volts * 1e9; v_unit = "nV"; } 
+        else if (v_volts < 1e-3) { v_val = v_volts * 1e6; v_unit = "µV"; } 
+        else { v_val = v_volts * 1e3; v_unit = "mV"; } 
+        const abs_snr = Math.abs(snr_db);
+        const snr_p = Math.pow(10, abs_snr / 10).toFixed(2);
+        const snr_v = Math.pow(10, abs_snr / 20).toFixed(2);
+        let baseInfo = `RSSI ${rssi_dbm.toFixed(1)}dBm (P=${p_val.toFixed(2)}${p_unit}, V=${v_val.toFixed(2)}${v_unit})\n` +  
+                       `SNR  ${snr_db.toFixed(2)}dB (P=1:${snr_p}, V=1:${snr_v})`; 
+        if (isAssistant) { 
+            const limit = window.currentSensitivityLimit || -124;
+            const margin = rssi_dbm - limit; 
+            const color = margin > 15 ? '#31a24c' : (margin > 5 ? '#ff9800' : '#ff4d4d'); 
+            return baseInfo + `<div style="margin-top:5px; padding-top:5px; border-top:1px solid #222; font-weight:bold; color:${color}">Zapas: ${margin.toFixed(1)} dB</div>`; 
+        } 
+        return baseInfo; 
+    }
+
+    function runAssistant(rssi, snr, isLocal) { 
+        const target = isLocal ? localHistory : remoteHistory; target.push({ rssi, snr }); 
+        if(target.length > 4) target.shift(); 
+        const avgRSSI = target.reduce((a, b) => a + b.rssi, 0) / target.length; 
+        const avgSNR = target.reduce((a, b) => a + b.snr, 0) / target.length; 
+        document.getElementById(isLocal ? 'ai-stat-local' : 'ai-stat-remote').innerHTML = formatRF(avgRSSI, avgSNR, true); 
+        document.getElementById('ai-suggestion').innerHTML = avgRSSI > -75 ? "🚀 <b>Sygnał idealny.</b>" : (avgRSSI < -108 ? "⚠️ <b>Sygnał krytyczny!</b>" : "⚖️ <b>Sygnał stabilny.</b>"); 
+    } 
+
+    function updatePowerLabels(val) { 
+        const pWatts = Math.pow(10, (val - 30) / 10);
+        document.getElementById('pVal').innerText = val; 
+        document.getElementById('pDet').innerText = `(${(pWatts * 1000).toFixed(1)} mW / ${(Math.sqrt(pWatts * 50) * 1000).toFixed(0)} mV)`; 
+    } 
+
+    function updateFreqLimits() {
+        const type = document.getElementById('setModemType').value;
+        const fInput = document.getElementById('setF');
+        if(type === "433") { fInput.min = "410"; fInput.max = "450"; fInput.value = "433.000"; } 
+        else { fInput.min = "860"; fInput.max = "875"; fInput.value = "868.000"; }
+    }
+
+    function markSessionStart() {
+        const oldMsgs = document.querySelectorAll('.msg-container:not(.history-old)');
+        oldMsgs.forEach(m => m.classList.add('history-old'));
+        const win = document.getElementById('chat-window');
+        const ts = getTimestamp();
+        const sep = document.createElement('div');
+        sep.className = 'session-separator';
+        sep.innerHTML = `<span>-- SESJA ROZPOCZĘTA: ${ts.date} ${ts.time} --</span>`;
+        win.appendChild(sep);
+        scrollToBottom();
+        saveChat();
+    }
+
+    async function toggleSerial() { 
+        if (port) { 
+            handleForcedDisconnect();
+        } else { 
+            try { 
+                port = await navigator.serial.requestPort(); 
+                await port.open({ baudRate: 115200 }); 
+                updateUI(true); 
+                keepReading = true; 
+                markSessionStart(); 
+                readSerial(); 
+                readConfig(); 
+            } catch (e) { 
+                console.error("Błąd otwarcia portu:", e); 
+            } 
+        } 
+    } 
+
+    function updateUI(connected) { 
+        document.getElementById('btnSerial').innerText = connected ? "ODŁĄCZ" : "POŁĄCZ USB"; 
+        document.getElementById('btnSerial').className = connected ? "btn btn-off" : "btn"; 
+        ['msgIn', 'btnSet', 'btnSend', 'btnRead', 'btnAlign', 'btnSave', 'btnClear'].forEach(id => document.getElementById(id).disabled = !connected);
+        if(!connected) document.getElementById('msgIn').value = "";
+    } 
+
+    async function applyLocal() { 
+        if(!port) return;
+        const cmd = `SET_LOCAL:F${document.getElementById('setF').value}:SF${document.getElementById('setSF').value}:BW${document.getElementById('setBW').value}:CR7:P${document.getElementById('setP').value}\n`;
+        const w = port.writable.getWriter(); 
+        await w.write(new TextEncoder().encode(cmd)); 
+        w.releaseLock(); 
+        document.getElementById('msgIn').focus();
+    } 
+
+    async function readConfig() { 
+        if(port) { 
+            const w = port.writable.getWriter(); 
+            await w.write(new TextEncoder().encode("GET_CONFIG\n")); 
+            w.releaseLock(); 
+            document.getElementById('msgIn').focus();
+        } 
+    }
+
+    async function stopAlignmentManually() {
+        if (!isAligning) return;
+        isAligning = false;
+        if (alignTimeout) { clearTimeout(alignTimeout); alignTimeout = null; }
+        if (alignInterval) { clearInterval(alignInterval); alignInterval = null; }
+        const btn = document.getElementById('btnAlign');
+        btn.innerText = "STROJENIE";
+        btn.classList.remove('active');
+        document.getElementById('tuning-sound').pause(); 
+        document.getElementById('tuning-sound').currentTime = 0;
+        if(port) {
+            try {
+                const w = port.writable.getWriter(); 
+                await w.write(new TextEncoder().encode("STOP_ALIGN\n")); 
+                w.releaseLock();
+            } catch (e) {}
+        }
+    }
+
+    async function toggleAlignment() {
+        if (window.alignLock) return;
+        window.alignLock = true; setTimeout(() => window.alignLock = false, 300);
+        if (isAligning) { await stopAlignmentManually(); return; }
+        isAligning = true;
+        const btn = document.getElementById('btnAlign');
+        btn.innerText = "STOP"; btn.classList.add('active');
+        const minutes = parseFloat(document.getElementById('setAlignTime').value);
+        const durationMs = Math.round(minutes * 60 * 1000);
+        if (alignTimeout) clearTimeout(alignTimeout);
+        if (alignInterval) clearInterval(alignInterval);
+        alignTimeout = setTimeout(async () => { if (isAligning) await stopAlignmentManually(); }, durationMs);
+        playTuningFile(); 
+        alignInterval = setInterval(playTuningFile, 500); 
+        if(port) {
+            try {
+                const w = port.writable.getWriter(); 
+                await w.write(new TextEncoder().encode("START_ALIGN\n")); 
+                w.releaseLock();
+            } catch (e) {}
+        }
+        document.getElementById('msgIn').focus();
+    }
+
+    async function readSerial() { 
+        while (port && port.readable && keepReading) { 
+            reader = port.readable.getReader(); 
+            const decoder = new TextDecoder(); 
+            let buffer = ""; 
+            try { 
+                while (keepReading) { 
+                    const { value, done } = await reader.read(); 
+                    if (done) break; 
+                    buffer += decoder.decode(value, { stream: true }); 
+                    let lines = buffer.split('\n'); 
+                    buffer = lines.pop(); 
+                    for(let line of lines) if (line.trim()) processLine(line.trim()); 
+                } 
+            } catch (e) { 
+                console.warn("Przerwano czytanie szeregowe.");
+                break; 
+            } finally { 
+                if (reader) {
+                    reader.releaseLock(); 
+                    reader = null;
+                }
+            } 
+        } 
+        if (keepReading) handleForcedDisconnect();
+    } 
+
+    function processLine(line) { 
+        if(line.startsWith("RCVD:")) { 
+            document.getElementById('notif-sound').play().catch(e => {}); 
+            lastContactTime = new Date(); 
+            let [msg, r, s] = line.replace("RCVD:", "").split('|'); 
+            let rssi = parseFloat(r.split(':')[1]), snr = parseFloat(s.split(':')[1]); 
+            appendMsg("Odbiorca", msg, 'rcvd', rssi, snr); 
+            runAssistant(rssi, snr, true); 
+            if(ttsEnabled) speak(msg);
+        } else if(line.startsWith("CONF_RES:")) { syncUI(line.replace("CONF_RES:", "")); } 
+        else if(line.startsWith("REMOTE_REPORT:")) { 
+            const [rssi, snr] = line.replace("REMOTE_REPORT:", "").split('|').map(x => x.split(':')[1]);
+            const last = document.querySelector('.msg-container.sent:not(.history-old):last-of-type');
+            if(last) {
+                let rVal = parseFloat(rssi), sVal = parseFloat(snr);
+                let r = last.querySelector('.remote-diag') || document.createElement('div');
+                r.className = 'remote-diag'; 
+                r.innerHTML = `<span>RAPORT ZDALNY : \n${formatRF(rVal, sVal, false)}</span>`;
+                const cBtn = document.createElement('button'); cBtn.className = 'copy-btn'; cBtn.innerText = '📋';
+                cBtn.onclick = () => copyToClipboard(rVal, sVal, cBtn);
+                r.appendChild(cBtn);
+                if (!last.querySelector('.remote-diag')) last.appendChild(r);
+                runAssistant(rVal, sVal, false); scrollToBottom(); saveChat();
+            }
+        } else if(line.startsWith("NOISE:")) { updateNoiseMeter(parseFloat(line.split(':')[1])); }
+        else if(line.startsWith("ALIGN_PULSE:")) {
+            let p = line.replace("ALIGN_PULSE:", "").split('|');
+            const rssi = parseFloat(p[0].split(':')[1]), snr = parseFloat(p[1].split(':')[1]);
+            document.getElementById('align-rssi-big').innerText = rssi.toFixed(1);
+            document.getElementById('align-snr-big').innerText = snr.toFixed(1);
+            document.getElementById('align-fill').style.width = Math.min(Math.max(((rssi+130)/70)*100,0),100) + "%";
+        }
+    } 
+
+    function syncUI(data) { 
+        const p = {}; data.split('|').forEach(x => { const [k, v] = x.split(':'); p[k] = v; }); 
+        const f = parseFloat(p.F); 
+        document.getElementById('setModemType').value = f > 800 ? "868" : "433";
+        updateFreqLimits(); document.getElementById('setF').value = f.toFixed(3);
+        if(p.P) { document.getElementById('setP').value = p.P; updatePowerLabels(p.P); } 
+        if(p.SF) document.getElementById('setSF').value = p.SF;
+        if(p.BW) document.getElementById('setBW').value = parseFloat(p.BW).toFixed(1);
+        const html = `<table class="config-table"><tr><td class="label">Pasmo</td><td class="value">${f > 800 ? '868' : '433'} MHz</td></tr><tr><td class="label">Częstotliwość</td><td class="value">${f.toFixed(3)} MHz</td></tr><tr><td class="label">BW/SF</td><td class="value">${parseFloat(p.BW).toFixed(1)} kHz/SF${p.SF}</td></tr><tr><td class="label">Moc</td><td class="value">${p.P} dBm</td></tr></table>`; 
+        appendMsg("System", "Konfiguracja aktywna", 'rcvd', null, null, html); 
+        calcToA(); updateSensitivity();
+    } 
+
+    async function sendMessage() { 
+        const i = document.getElementById('msgIn'); 
+        if(!i.value.trim() || !port) return; 
+        const t = calcToA(); 
+        const w = port.writable.getWriter(); 
+        await w.write(new TextEncoder().encode(i.value.trim() + "\n")); 
+        appendMsg("Ja", i.value.trim(), 'sent'); 
+        i.value = ""; i.focus(); 
+        w.releaseLock(); 
+        startCooldown(t.wait); 
+    }
+
+    function appendMsg(sender, text, type, rssi, snr, tableHtml) { 
+        const win = document.getElementById('chat-window'); const ts = getTimestamp(); 
+        const c = document.createElement('div'); c.className = `msg-container ${type}`; 
+        const header = document.createElement('div'); header.className = 'msg-header'; 
+        header.innerHTML = `<span>${sender}</span><span class="msg-time">${ts.date} ${ts.time}</span>`; 
+        const b = document.createElement('div'); b.className = 'bubble'; b.innerHTML = linkify(text); 
+        if(tableHtml) { const d = document.createElement('div'); d.innerHTML = tableHtml; b.appendChild(d); } 
+        c.appendChild(header); c.appendChild(b); 
+        if(rssi !== null && snr !== null && rssi !== undefined) { 
+            const wrap = document.createElement('div'); wrap.className = 'diag-wrapper';
+            const d = document.createElement('div'); d.className = 'diag'; 
+            d.innerHTML = "SYGNAŁ LOKALNY : \n" + formatRF(parseFloat(rssi), parseFloat(snr), false); 
+            const cBtn = document.createElement('button'); cBtn.className = 'copy-btn'; cBtn.innerText = '📋';
+            cBtn.onclick = () => copyToClipboard(parseFloat(rssi), parseFloat(snr), cBtn);
+            wrap.appendChild(d); wrap.appendChild(cBtn); c.appendChild(wrap); 
+        } 
+        win.appendChild(c); scrollToBottom(); saveChat(); 
+    } 
+
+    function scrollToBottom() { const win = document.getElementById('chat-window'); win.scrollTop = win.scrollHeight; } 
+    window.onload = () => { loadChat(); updateFreqLimits(); updatePowerLabels(22); loadVoices(); updateSensitivity(); };
+</script>
+</body> 
+</html>
